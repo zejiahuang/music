@@ -22,6 +22,15 @@ jobs:
           target: desktop
           arch: win64_msvc2019_64
 
+      - name: Install Chocolatey (for pkg-config)
+        run: |
+          Set-ExecutionPolicy Bypass -Scope Process -Force
+          [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+          iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+
+      - name: Install pkg-config
+        run: choco install pkgconfiglite
+
       - name: Install vcpkg dependencies
         run: |
           git clone https://github.com/microsoft/vcpkg.git
@@ -30,7 +39,7 @@ jobs:
           .\vcpkg\vcpkg install ffmpeg:x64-windows
 
       - name: Configure CMake
-        run: cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_PREFIX_PATH="./vcpkg/installed/x64-windows"
+        run: cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake
 
       - name: Build
         run: cmake --build build --config Release
@@ -50,4 +59,4 @@ jobs:
             *.dll
             resources/icon.png
         env:
-          GITHUB_TOKEN: ${{ secrets.A }}
+          GITHUB_TOKEN: ${{ secrets.A}}

@@ -11,11 +11,8 @@ jobs:
     runs-on: windows-latest
     env:
       QT_VERSION: '5.15.2'
-      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v3
@@ -31,27 +28,20 @@ jobs:
           .\vcpkg\bootstrap-vcpkg.bat
           .\vcpkg\vcpkg install taglib:x64-windows
           .\vcpkg\vcpkg install ffmpeg:x64-windows
-          .\vcpkg\vcpkg install pkgconf:x64-windows
-
-      - name: Check and fix source file encoding
-        run: |
-          # 检查并修复源文件中的非法字符
-          $files = Get-ChildItem -Recurse -Include *.h, *.cpp -File
-          foreach ($file in $files) {
-            $content = Get-Content -Path $file.FullName -Raw
-            # 移除非法字符（如中文标点符号）
-            $cleanContent = $content -replace '[^\x00-\x7F]', ''
-            if ($content -ne $cleanContent) {
-              Write-Host "Cleaning invalid characters in $($file.FullName)"
-              Set-Content -Path $file.FullName -Value $cleanContent -NoNewline
-            }
-          }
 
       - name: Configure CMake
         run: |
-          $vcpkgPath = "${{ github.workspace }}/vcpkg"
-          $toolchainFile = "$vcpkgPath/scripts/buildsystems/vcpkg.cmake"
-          cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=$toolchainFile -DCMAKE_PREFIX_PATH="$vcpkgPath/installed/x64-windows" -DCMAKE_CXX_FLAGS="/utf-8"
+          $vcpkgDir = "$pwd/vcpkg"
+          $toolchainFile = "$vcpkgDir/scripts/buildsystems/vcpkg.cmake"
+          Write-Host "Using toolchain file: $toolchainFile"
+          if (Test-Path $toolchainFile) {
+            Write-Host "Toolchain file exists"
+          } else {
+            Write-Host "Toolchain file does not exist"
+            Get-ChildItem -Path $vcpkgDir -Recurse -Name | Where-Object { $_ -like "*vcpkg.cmake" }
+            exit 1
+          }
+          cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE="$toolchainFile"
 
       - name: Build
         run: cmake --build build --config Release
@@ -77,4 +67,4 @@ jobs:
             swresample-*.dll
             resources/icon.png
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.A }}

@@ -4,7 +4,9 @@
 #include <QSlider>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListWidget>
 #include "ui/lyricsvisualwidget.h"
+#include "ffmpegplayer.h"
 
 class PlayerWindow : public QMainWindow {
     Q_OBJECT
@@ -13,7 +15,10 @@ public:
 
 private:
     LyricsVisualWidget *lyricsVisualWidget;
-    // ...其他成员
+    QLineEdit *searchEdit;
+    QListWidget *playlistWidget;
+    FFmpegPlayer *player;
+    
     void setupUi();
     void setupStyle();
     void loadSong(const QString &audioPath);

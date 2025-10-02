@@ -9,7 +9,6 @@
 QString TStringToQString(const TagLib::String &str) {
     return QString::fromUtf8(str.toCString(true));
 }
-
 SongInfo readAudioMeta(const QString &filePath) {
     SongInfo s;
     s.filePath = filePath;

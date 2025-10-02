@@ -18,7 +18,7 @@ void PlaylistManager::scanMusicFolders(const QString &musicRootDir, const QStrin
         Playlist pl;
         pl.name = folderName;
         QDir fdir(folderPath);
-        QStringList filters = {"*.mp3"， "*.flac"， "*.wav",，"*.ape"， "*.aac"， "*.ogg"， "*.m4a"};
+        QStringList filters = {"*.mp3"， "*.flac"， "*.wav"， "*.ape"， "*.aac"， "*.ogg"， "*.m4a"};
         
         for (const QString &musicFile : fdir.entryList(filters, QDir::Files)) {
             QString fullPath = fdir.absoluteFilePath(musicFile);

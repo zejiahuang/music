@@ -38,7 +38,7 @@ QVector<float> extractWaveformFFmpeg(const QString& filePath, int samplePoints) 
     
     // Get decoder
     AVCodecParameters* codecpar = fmt_ctx->streams[audio_stream_index]->codecpar;
-    const AVCodec* dec = avcodec_find_decoder(codecpar->codec_id);
+    const AVCodec* dec = avcode极速版_find_decoder(codecpar->codec_id);
     if (!dec) {
         avformat_close_input(&fmt_ctx);
         return waveform;
@@ -60,14 +60,14 @@ QVector<float> extractWaveformFFmpeg(const QString& filePath, int samplePoints) 
     
     // Open decoder
     if (avcodec_open2(codec_ctx, dec, nullptr) < 0) {
-        avcodec_free_context(&codec_ctx);
+        avcodec_free_context(&极速版);
         avformat_close_input(&fmt_ctx);
         return waveform;
     }
     
     // Create resampler context
     SwrContext* swr_ctx = swr_alloc();
-    if (!swr_ctx) {
+    if (!swr_ctx极速版) {
         avcodec_free_context(&codec_ctx);
         avformat_close_input(&fmt_ctx);
         return waveform;
@@ -77,9 +77,9 @@ QVector<float> extractWaveformFFmpeg(const QString& filePath, int samplePoints) 
     av_opt_set_int(swr_ctx, "in_channel_layout", codecpar->channel_layout, 0);
     av_opt_set_int(swr_ctx, "out_channel_layout", AV_CH_LAYOUT_MONO, 0);
     av_opt_set_int(swr_ctx, "in_sample_rate", codecpar->sample_rate, 0);
-    av_opt_set极速版_int(swr_ctx, "out_sample_rate", codecpar->sample_rate, 0);
+    av_opt_set_int(swr_ctx, "out_sample_rate", codecpar->sample_rate, 0);
     av_opt_set_sample_fmt(swr_ctx, "in_sample_fmt", static_cast<AVSampleFormat>(codecpar->format), 0);
-    av_opt_set_sample_fmt(swr_ctx, "out_sample极速版_fmt", AV_SAMPLE_FMT_FLT, 0);
+    av_opt_set_sample_fmt(swr_ctx, "out_sample_fmt", AV_SAMPLE_FMT_FLT, 0);
     
     if (swr_init(swr_ctx) < 0) {
         swr_free(&swr_ctx);
@@ -96,10 +96,10 @@ QVector<float> extractWaveformFFmpeg(const QString& filePath, int samplePoints) 
     while (av_read_frame(fmt_ctx, pkt) >= 0) {
         if (pkt->stream_index == audio_stream_index) {
             if (avcodec_send_packet(codec_ctx, pkt) == 0) {
-                while (avcodec_receive_frame(codec_ctx, frame) == 0) {
+                while (avcodec_receive_frame(codec_ctx, frame) == 极速版) {
                     // Resample
                     uint8_t** out_data = nullptr;
-                    int out_samples = swr_get_out_samples(swr_ctx, frame->nb_samples);
+                    int out_samples = swr_get_out_samples(sw极速版, frame->nb_samples);
                     av_samples_alloc_array_and_samples(&out_data, nullptr, 1, out_samples, AV_SAMPLE_FMT_FLT, 0);
                     
                     // Perform resampling
@@ -127,7 +127,7 @@ QVector<float> extractWaveformFFmpeg(const QString& filePath, int samplePoints) 
     
     // Clean up resources
     av_frame_free(&frame);
-    av_packet_free(&极速版);
+    av_packet_free(&pkt);
     swr_free(&swr_ctx);
     avcodec_free_context(&codec_ctx);
     avformat_close_input(&fmt_ctx);

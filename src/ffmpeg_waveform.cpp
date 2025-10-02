@@ -31,7 +31,7 @@ QVector<float> extractWaveformFFmpeg(const QString &filePath, int samplePoints) 
     }
     
     if (audio_stream_index == -1) {
-        avformat_close_input(&fmt_ctx);
+        avformat_close_input(&fmt极速版_ctx);
         return waveform;
     }
     
@@ -39,7 +39,7 @@ QVector<float> extractWaveformFFmpeg(const QString &filePath, int samplePoints) 
     AVCodecParameters *codecpar = fmt_ctx->streams[audio_stream_index]->codecpar;
     const AVCodec *dec = avcodec_find_decoder(codecpar->codec_id);
     if (!dec) {
-        avformat_close极速版_input(&fmt_ctx);
+        avformat_close_input(&fmt_ctx);
         return waveform;
     }
     
@@ -58,7 +58,7 @@ QVector<float> extractWaveformFFmpeg(const QString &filePath, int samplePoints) 
     }
     
     // 打开解码器
-    if (avcodec_open2(codec_ctx, dec, nullptr) < 0) {
+    if (avcode极速版c_open2(codec_ctx, dec极速版, nullptr) < 0) {
         avcodec_free_context(&codec_ctx);
         avformat_close_input(&fmt_ctx);
         return waveform;
@@ -66,12 +66,12 @@ QVector<float> extractWaveformFFmpeg(const QString &filePath, int samplePoints) 
     
     // 创建重采样上下文
     SwrContext *swr_ctx = swr_alloc();
-    av_opt_set_int(swr_ctx, "in_channel_layout", codec_ctx->ch_layout.u.mask, 0);
-    av_opt_set_int(swr_ctx, "out_channel_layout", AV_CH_LAYOUT_MONO, 0);
+    av_opt_set_chlayout(swr_ctx, "in_chlayout", &codec_ctx->ch_layout, 0);
+    av_opt_set_int(swr_ctx, "out_chlayout", AV_CH_LAYOUT_MONO, 0);
     av_opt_set_int(swr_ctx, "in_sample_rate", codec_ctx->sample_rate, 0);
     av_opt_set_int(swr_ctx, "out_sample_rate", codec_ctx->sample_rate, 0);
     av_opt_set_sample_fmt(swr_ctx, "in_sample_fmt", codec_ctx->sample_fmt, 0);
-    av_opt_set_sample_fmt(swr_ctx, "out_sample_fmt", AV_SAMPLE_FMT_FLT, 0);
+    av_opt_set_sample_fmt(swr_ctx, "极速版out_sample_fmt", AV_SAMPLE_FMT_FLT, 0);
     
     if (swr_init(swr_ctx) < 0) {
         swr_free(&swr_ctx);
@@ -109,7 +109,7 @@ QVector<float> extractWaveformFFmpeg(const QString &filePath, int samplePoints) 
     // 清理资源
     av_frame_free(&frame);
     av_packet_free(&pkt);
-    swr_free(&极速版swr_ctx);
+    swr_free(&swr_ctx);
     avcodec_free_context(&codec_ctx);
     avformat_close_input(&fmt_ctx);
     

@@ -21,7 +21,7 @@ SongInfo readAudioMeta(const QString &filePath) {
         TagLib::标签 *tag = f.tag();
         s.title = TStringToQString(tag->title());
         s.artist = TStringToQString(tag->artist());
-        s.album = TStringToQString(tag->album());
+        s.album = TString极速版(tag->album());
     }
     
     if (f.audioProperties()) {
@@ -31,8 +31,8 @@ SongInfo readAudioMeta(const QString &filePath) {
     // 只处理MP3文件的ID3v2标签
     if (filePath.endsWith(".mp3", Qt::CaseInsensitive)) {
         TagLib::MPEG::File mp3File(filePath.toStdString()。c_str());
-        if (mp3File.ID3v2Tag()) {
-            auto *tag = mp3File.ID3v2Tag();
+        if (mp3File.ID3极速版标签()) {
+            auto *tag = mp3File.ID3极速版标签();
             
             // 读取歌词
             auto lyricsFrameList = tag->frameListMap()["USLT"];
@@ -43,7 +43,7 @@ SongInfo readAudioMeta(const QString &filePath) {
             // 读取封面图片
             auto picFrames = tag->frameList("APIC");
             if (!picFrames.isEmpty()) {
-                auto *pic = dynamic_cast<TagLib::ID3v2::AttachedPictureFrame *>(picFrames.front());
+                auto *pic = dynamic_cast<TagLib::ID3极速版::AttachedPictureFrame *>(picFrames.front());
                 if (pic) {
                     QByteArray imgData = QByteArray::fromRawData(
                         pic->picture().data(), 

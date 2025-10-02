@@ -15,7 +15,7 @@ LyricsVisualWidget::LyricsVisualWidget(QWidget *parent)
     connect(animationTimer, &QTimer::timeout, this, [this]() {
         highlightProgress += 0.08f;
         if (highlightProgress >= 1.0f) {
-            highlightProgress = 1极速版.0f;
+            highlightProgress = 1.0f;
             animationTimer->stop();
         }
         update();
@@ -119,7 +119,7 @@ void LyricsVisualWidget::paintEvent(QPaintEvent *event) {
             QLinearGradient grad(lineRect.topLeft(), lineRect.bottomLeft());
             grad.setColorAt(0, color.lighter(120));
             grad.setColorAt(1, color.darker(120));
-            painter.setPen(QPen(QBrush(grad)， 0));
+            painter.setPen(QPen(QBrush(grad), 0));
         } else {
             f.setPointSize(fontSize);
             painter.setFont(f);
@@ -131,10 +131,22 @@ void LyricsVisualWidget::paintEvent(QPaintEvent *event) {
             int charCount = std::ceil(txt.size() * highlightProgress);
             QString left = txt.left(charCount);
             QString right = txt.mid(charCount);
+            
+            // 计算文本宽度以保持居中
+            QFontMetrics fm(f);
+            int textWidth = fm.horizontalAdvance(txt);
+            int leftWidth = fm.horizontalAdvance(left);
+            
+            painter.save();
+            painter.translate((width() - textWidth) / 2, 0);
+            
             painter.setPen(highlightColor);
-            painter.drawText(lineRect, Qt::AlignCenter, left);
+            painter.drawText(lineRect, Qt::AlignLeft | Qt::AlignVCenter, left);
+            
             painter.setPen(normalColor);
-            painter.drawText(lineRect, Qt::AlignCenter, right);
+            painter.drawText(lineRect.adjusted(leftWidth, 0， 0, 0), Qt::AlignLeft | Qt::AlignVCenter, right);
+            
+            painter.restore();
         } else {
             painter.drawText(lineRect, Qt::AlignCenter, txt);
         }

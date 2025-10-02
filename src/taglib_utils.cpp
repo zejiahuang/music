@@ -32,18 +32,18 @@ SongInfo readAudioMeta(const QString& filePath) {
     if (filePath.endsWith(".mp3", Qt::CaseInsensitive)) {
         TagLib::MPEG::File mp3File(filePath.toStdString()。c_str());
         if (mp3File.ID3v2Tag()) {
-            auto* tag = mp3File.ID3v2Tag();
+            TagLib::ID3v2::标签* tag = mp3File.ID3v2Tag();
             
             // Read lyrics
-            auto lyricsFrameList = tag->frameListMap()["USLT"];
+            TagLib::ID3v2::FrameList lyricsFrameList = tag->frameListMap()["USLT"];
             if (!lyricsFrameList.isEmpty()) {
                 s.lyrics = TStringToQString(lyricsFrameList.front()->toString());
             }
             
             // Read cover image
-            auto picFrames = tag->frameList("APIC");
+            TagLib::ID3v2::FrameList picFrames = tag->frameList("APIC");
             if (!picFrames.isEmpty()) {
-                auto* pic = dynamic_cast<TagLib::ID3v2::AttachedPictureFrame*>(picFrames.front());
+                TagLib::ID3v2::AttachedPictureFrame* pic = dynamic_cast<TagLib::ID3v2::AttachedPictureFrame*>(picFrames.front());
                 if (pic) {
                     QByteArray imgData(pic->picture().data(), pic->picture().size());
                     s.cover.loadFromData(imgData);

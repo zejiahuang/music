@@ -32,7 +32,7 @@ include_directories(
     ${FFMPEG_INCLUDE_DIRS}
 )
 
-# 添加可执行文件 - 移除了不存在的 ffmpegplayer.cpp
+# 添加可执行文件
 add_executable(musicplayer
     src/main.cpp
     src/playerwindow.cpp
@@ -41,7 +41,8 @@ add_executable(musicplayer
     src/ffmpeg_waveform.cpp
     src/playlistmanager.cpp
     src/ui/lyricsvisualwidget.cpp
-    # 移除了不存在的 src/ffmpegplayer.cpp
+    # 添加ffmpegplayer.cpp
+    src/ffmpegplayer.cpp
 )
 
 # 链接库
@@ -101,26 +102,3 @@ if(DEFINED ENV{GITHUB_ACTIONS})
         link_directories("$ENV{VCPKG_ROOT}/installed/x64-windows/lib")
     endif()
 endif()
-
-# 添加自定义目标，用于检查所有源文件是否存在
-add_custom_target(check_sources
-    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/CheckSources.cmake
-    COMMENT "Checking if all source files exist"
-)
-
-# 创建检查源文件的脚本
-file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/CheckSources.cmake "
-foreach(src 
-    \"src/main.cpp\"
-    \"src/playerwindow.cpp\"
-    \"src/playlist.cpp\"
-    \"src/taglib_utils.cpp\"
-    \"src/ffmpeg_waveform.cpp\"
-    \"src/playlistmanager.cpp\"
-    \"src/ui/lyricsvisualwidget.cpp\"
-)
-    if(NOT EXISTS \"\${src}\")
-        message(FATAL_ERROR \"Source file \${src} does not exist!\")
-    endif()
-endforeach()
-")

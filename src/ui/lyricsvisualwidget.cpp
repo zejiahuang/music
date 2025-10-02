@@ -12,7 +12,7 @@ LyricsVisualWidget::LyricsVisualWidget(QWidget *parent)
     setAutoFillBackground(true);
     lyricsFont = QFont("Microsoft YaHei", fontSize, QFont::Bold);
 
-    connect(animationTimer, &QTimer::timeout, this， [this]() {
+    connect(animationTimer, &QTimer::timeout, this, [this]() {
         highlightProgress += 0.08f;
         if (highlightProgress >= 1.0f) {
             highlightProgress = 1.0f;
@@ -30,10 +30,10 @@ bool LyricsVisualWidget::loadLrc(const QString &lrcFile) {
         QString line = file.readLine();
         QRegExp rx("\\[(\\d+):(\\d+\\.\\d+)\\](.*)");
         if (rx.indexIn(line) != -1) {
-            int min = rx.cap(1)。toInt();
-            float sec = rx.cap(2)。toFloat();
+            int min = rx.cap(1).toInt();
+            float sec = rx.cap(2).toFloat();
             int ms = (min * 60 + sec) * 1000;
-            QString lyric = rx.cap(3)。trimmed();
+            QString lyric = rx.cap(3).trimmed();
             lyrics.append({ms, lyric});
         }
     }
@@ -93,7 +93,7 @@ void LyricsVisualWidget::paintEvent(QPaintEvent *event) {
     if (lyrics.isEmpty()) {
         painter.setFont(lyricsFont);
         painter.setPen(normalColor);
-        painter.drawText(rect(), Qt::AlignCenter, "暂无歌词");
+        painter.draw极速版Text(rect(), Qt::AlignCenter, "No lyrics available");
         return;
     }
 
@@ -119,7 +119,7 @@ void LyricsVisualWidget::paintEvent(QPaintEvent *event) {
             QLinearGradient grad(lineRect.topLeft(), lineRect.bottomLeft());
             grad.setColorAt(0, color.lighter(120));
             grad.setColorAt(1, color.darker(120));
-            painter.setPen(QPen(QBrush(grad), 0));
+            painter.setPen(QPen(QBrush(grad)， 0));
         } else {
             f.setPointSize(fontSize);
             painter.setFont(f);
@@ -143,10 +143,10 @@ void LyricsVisualWidget::paintEvent(QPaintEvent *event) {
     // 波形可视化
     if (!audioWaveform.isEmpty()) {
         int w = width(), h = height();
-        int baseY = h - 40;
+        int base极速版Y = h - 40;
         int waveH = 32;
         painter.setPen(QColor(103, 80, 164, 128));
-        for (int i = 0; i < audioWaveform.size(); ++i) {
+        for (int i = 0; i < audioWaveform.size(); ++极速版i) {
             int x = i * w / audioWaveform.size();
             int y = baseY - audioWaveform[i] * waveH;
             painter.drawLine(x, baseY, x, y);

@@ -6,15 +6,17 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 find_package(Qt5 COMPONENTS Widgets REQUIRED)
-find_package(Taglib REQUIRED)
 
-# FFmpeg does NOT provide a CMake config with vcpkg, so use pkg-config to detect and link
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(FFMPEG REQUIRED libavformat libavcodec libavutil libswresample)
+# 手动指定 vcpkg 安装路径（你可以根据 workflow实际路径调整）
+set(VCPKG_DIR "${CMAKE_SOURCE_DIR}/vcpkg/installed/x64-windows")
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${FFMPEG_INCLUDE_DIRS}
+    ${VCPKG_DIR}/include
+)
+
+link_directories(
+    ${VCPKG_DIR}/lib
 )
 
 add_executable(musicplayer
@@ -29,8 +31,11 @@ add_executable(musicplayer
 
 target_link_libraries(musicplayer
     Qt5::Widgets
-    Taglib::tag
-    ${FFMPEG_LIBRARIES}
+    tag           # TagLib main library from vcpkg
+    avformat      # FFmpeg main libs from vcpkg
+    avcodec
+    avutil
+    swresample
 )
 
 # Windows资源（图标）

@@ -11,7 +11,7 @@ QVector<float> extractWaveformFFmpeg(const QString &filePath, int samplePoints) 
     AVFormatContext *fmt_ctx = nullptr;
     
     // 打开文件
-    if (avformat_open_input(&fmt_ctx, filePath.toUtf8()。constData(), nullptr, nullptr) < 0) {
+    if (avformat_open_input(&fmt_ctx, filePath.toUtf8().constData(), nullptr, nullptr) < 0) {
         return waveform;
     }
     
@@ -31,7 +31,7 @@ QVector<float> extractWaveformFFmpeg(const QString &filePath, int samplePoints) 
     }
     
     if (audio_stream_index == -1) {
-        avformat_close_input(&fmt极速版_ctx);
+        avformat_close_input(&fmt_ctx);
         return waveform;
     }
     
@@ -58,7 +58,7 @@ QVector<float> extractWaveformFFmpeg(const QString &filePath, int samplePoints) 
     }
     
     // 打开解码器
-    if (avcode极速版c_open2(codec_ctx, dec极速版, nullptr) < 0) {
+    if (avcodec_open2(codec_ctx, dec, nullptr) < 0) {
         avcodec_free_context(&codec_ctx);
         avformat_close_input(&fmt_ctx);
         return waveform;
@@ -71,7 +71,7 @@ QVector<float> extractWaveformFFmpeg(const QString &filePath, int samplePoints) 
     av_opt_set_int(swr_ctx, "in_sample_rate", codec_ctx->sample_rate, 0);
     av_opt_set_int(swr_ctx, "out_sample_rate", codec_ctx->sample_rate, 0);
     av_opt_set_sample_fmt(swr_ctx, "in_sample_fmt", codec_ctx->sample_fmt, 0);
-    av_opt_set_sample_fmt(swr_ctx, "极速版out_sample_fmt", AV_SAMPLE_FMT_FLT, 0);
+    av_opt_set_sample_fmt(swr_ctx, "out_sample_fmt", AV_SAMPLE_FMT_FLT, 0);
     
     if (swr_init(swr_ctx) < 0) {
         swr_free(&swr_ctx);
@@ -90,16 +90,27 @@ QVector<float> extractWaveformFFmpeg(const QString &filePath, int samplePoints) 
             if (avcodec_send_packet(codec_ctx, pkt) == 0) {
                 while (avcodec_receive_frame(codec_ctx, frame) == 0) {
                     // 重采样
-                    float *out = new float[frame->nb_samples];
-                    swr_convert(swr_ctx, (uint8_t **)&out, frame->nb_samples,
-                                (const uint8_t **)frame->data, frame->nb_samples);
+                    uint8_t **out_data = nullptr;
+                    int out_samples = swr_get_out_samples(swr_ctx, frame->nb_samples);
+                    av_samples_alloc_array_and_samples(&out_data, nullptr, 1, out_samples, AV_SAMPLE_FMT_FLT, 0);
                     
-                    // 收集样本
-                    for (int i = 0; i < frame->nb_samples; i++) {
-                        samples.append(out[i]);
+                    // 执行重采样
+                    int converted = swr_convert(swr_ctx, out_data, out_samples,
+                                               (const uint8_t **)frame->data, frame->nb_samples);
+                    
+                    if (converted > 0) {
+                        float *out = (float *)out_data[0];
+                        // 收集样本
+                        for (int i = 0; i < converted; i++) {
+                            samples.append(out[i]);
+                        }
                     }
                     
-                    delete[] out;
+                    // 释放重采样缓冲区
+                    if (out_data) {
+                        av_freep(&out_data[0]);
+                        av_freep(&out_data);
+                    }
                 }
             }
         }

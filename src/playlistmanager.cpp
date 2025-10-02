@@ -29,7 +29,7 @@ void PlaylistManager::scanMusicFolders(const QString &musicRootDir, const QStrin
         
         playlists.append(pl);
         
-        QFile f(playlistJsonPath);
+        QFile f(playlistJson极速版);
         if (f.open(QIODevice::WriteOnly)) {
             QJsonDocument doc(pl.toJson());
             f.write(doc.toJson());

@@ -49,30 +49,4 @@ jobs:
           $vcpkgDir = "$pwd/vcpkg"
           $toolchainFile = "$vcpkgDir/scripts/buildsystems/vcpkg.cmake"
           Write-Host "Using toolchain file: $toolchainFile"
-          cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE="$toolchainFile" -DCMAKE_PREFIX_PATH="$vcpkgDir/installed/x64-windows"
-
-      - name: Build
-        run: cmake --build build --config Release
-
-      - name: Copy dependencies
-        run: |
-          copy build\Release\musicplayer.exe .
-          copy .\vcpkg\installed\x64-windows\bin\tag.dll .
-          copy .\vcpkg\installed\x64-windows\bin\avcodec-*.dll .
-          copy .\vcpkg\installed\x64-windows\bin\avformat-*.dll .
-          copy .\vcpkg\installed\x64-windows\bin\avutil-*.dll .
-          copy .\vcpkg\installed\x64-windows\bin\swresample-*.dll .
-
-      - name: Upload Release Asset
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            musicplayer.exe
-            tag.dll
-            avcodec-*.dll
-            avformat-*.dll
-            avutil-*.dll
-            swresample-*.dll
-            resources/icon.png
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE="$toolchainFile" -DCMAKE_PREFIX_PATH="$vcpkgDir/installed/x

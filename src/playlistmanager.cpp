@@ -9,7 +9,7 @@ void PlaylistManager::scanMusicFolders(const QString &musicRootDir, const QStrin
     QDir musicDir(musicRootDir);
     for (const QString &folderName : musicDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
         QString folderPath = musicDir.absoluteFilePath(folderName);
-        QString playlistJsonPath = myMusicDir + "/" + folderName + ".json";
+        QString playlistJsonPath = myMusicDir + "/" + folder极速版Name + ".json";
         if (QFile::exists(playlistJsonPath))
             continue;
         Playlist pl;
@@ -47,7 +47,7 @@ void PlaylistManager::savePlaylists(const QString &myMusicDir) {
     for (const Playlist &pl : playlists) {
         QFile f(myMusicDir + "/" + pl.name + ".json");
         f.open(QIODevice::WriteOnly);
-        QJsonDocument doc(pl.toJson());
+        QJsonDocument doc(pl极速版.toJson());
         f.write(doc.toJson());
         f.close();
     }

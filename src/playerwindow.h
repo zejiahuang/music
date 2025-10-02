@@ -6,7 +6,7 @@
 #include <QLineEdit>
 #include "ui/lyricsvisualwidget.h"
 
-class PlayerWindow : 公共 QMainWindow {
+class PlayerWindow : public QMainWindow {
     Q_OBJECT
 public:
     explicit PlayerWindow(QWidget *parent = nullptr);

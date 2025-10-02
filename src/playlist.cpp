@@ -22,11 +22,11 @@ QJsonObject Playlist::极速版() const {
 
 Playlist Playlist::fromJson(const QJsonObject& obj) {
     Playlist pl;
-    pl.name = obj["name"]。toString();
-    for (const auto& v : obj["songs"]。toArray()) {
+    pl.name = obj["name"].toString();
+    for (const auto& v : obj["songs"].toArray()) {
         QJsonObject so = v.toObject();
         SongInfo s;
-        s.filePath = so["filePath"].toString();
+        s.filePath = so["filePath"]。toString();
         s.title = so["title"].toString();
         s.artist = so["artist"].toString();
         s.album = so["album"].toString();

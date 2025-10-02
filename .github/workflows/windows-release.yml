@@ -11,8 +11,11 @@ jobs:
     runs-on: windows-latest
     env:
       QT_VERSION: '5.15.2'
+      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v3
@@ -22,41 +25,56 @@ jobs:
           target: desktop
           arch: win64_msvc2019_64
 
-      - name: Install Chocolatey (for pkg-config)
-        run: |
-          Set-ExecutionPolicy Bypass -Scope Process -Force
-          [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-          iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-
-      - name: Install pkg-config
-        run: choco install pkgconfiglite
-
       - name: Install vcpkg dependencies
         run: |
           git clone https://github.com/microsoft/vcpkg.git
           .\vcpkg\bootstrap-vcpkg.bat
           .\vcpkg\vcpkg install taglib:x64-windows
           .\vcpkg\vcpkg install ffmpeg:x64-windows
+          .\vcpkg\vcpkg install pkgconf:x64-windows
+
+      - name: Check and fix source file encoding
+        run: |
+          # 检查并修复源文件中的非法字符
+          $files = Get-ChildItem -Recurse -Include *.h, *.cpp -File
+          foreach ($file in $files) {
+            $content = Get-Content -Path $file.FullName -Raw
+            # 移除非法字符（如中文标点符号）
+            $cleanContent = $content -replace '[^\x00-\x7F]', ''
+            if ($content -ne $cleanContent) {
+              Write-Host "Cleaning invalid characters in $($file.FullName)"
+              Set-Content -Path $file.FullName -Value $cleanContent -NoNewline
+            }
+          }
 
       - name: Configure CMake
-        run: cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake
+        run: |
+          $vcpkgPath = "${{ github.workspace }}/vcpkg"
+          $toolchainFile = "$vcpkgPath/scripts/buildsystems/vcpkg.cmake"
+          cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=$toolchainFile -DCMAKE_PREFIX_PATH="$vcpkgPath/installed/x64-windows" -DCMAKE_CXX_FLAGS="/utf-8"
 
       - name: Build
         run: cmake --build build --config Release
 
-      - name: Copy dependencies (FFmpeg/TagLib DLL)
+      - name: Copy dependencies
         run: |
           copy build\Release\musicplayer.exe .
-          REM Copy DLL from vcpkg installed bin directory as needed
-          REM Example:
-          REM copy .\vcpkg\installed\x64-windows\bin\*.dll .
+          copy .\vcpkg\installed\x64-windows\bin\tag.dll .
+          copy .\vcpkg\installed\x64-windows\bin\avcodec-*.dll .
+          copy .\vcpkg\installed\x64-windows\bin\avformat-*.dll .
+          copy .\vcpkg\installed\x64-windows\bin\avutil-*.dll .
+          copy .\vcpkg\installed\x64-windows\bin\swresample-*.dll .
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
           files: |
             musicplayer.exe
-            *.dll
+            tag.dll
+            avcodec-*.dll
+            avformat-*.dll
+            avutil-*.dll
+            swresample-*.dll
             resources/icon.png
         env:
-          GITHUB_TOKEN: ${{ secrets.A}}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

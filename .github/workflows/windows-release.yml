@@ -27,7 +27,7 @@ jobs:
           git clone https://github.com/microsoft/vcpkg.git
           .\vcpkg\bootstrap-vcpkg.bat
           .\vcpkg\vcpkg install taglib:x64-windows
-          .\vcpkg\vcpkg install ffmpeg:x64-windows
+          .\vcpkg\v极速版cpkg install ffmpeg:x64-windows
           .\vcpkg\vcpkg install pkgconf:x64-windows
 
       - name: Clean source files from invalid characters
@@ -49,4 +49,75 @@ jobs:
           $vcpkgDir = "$pwd/vcpkg"
           $toolchainFile = "$vcpkgDir/scripts/buildsystems/vcpkg.cmake"
           Write-Host "Using toolchain file: $toolchainFile"
-          cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE="$toolchainFile" -DCMAKE_PREFIX_PATH="$vcpkgDir/installed/x
+          
+          # 检查工具链文件是否存在
+          if (Test-Path $toolchainFile) {
+              Write-Host "Toolchain file found"
+          } else {
+              Write-Host "Toolchain file not found"
+              Get-ChildItem -Path $vcpkgDir -Recurse -Name | Where-Object { $_ -like "*vcpkg.cmake" }
+              exit 1
+          }
+          
+          cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE="$toolchainFile" -DCMAKE_PREFIX_PATH="$vcpkgDir/installed/x64-windows"
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Check build artifacts
+        run: |
+          if (Test-Path "build/Release/musicplayer.exe") {
+              Write-Host "Build successful - musicplayer.exe found"
+          } else {
+              Write-Host "Build failed - musicplayer.exe not found"
+              exit 1
+          }
+
+      - name: Copy dependencies
+        run: |
+          copy build\Release\musicplayer.exe .
+          copy .\vcpkg\installed\x64-windows\bin\tag.dll .
+          copy .\vcpkg\installed\x64-windows\bin\avcodec-*.dll .
+          copy .\vcpkg\installed\x64-windows\bin\avformat-*.dll .
+          copy .\vcpkg\installed\x64-windows\bin\avutil-*.dll .
+          copy .\vcpkg\installed\x64-windows\bin\swresample-*.dll .
+
+      - name: Create release package
+        run: |
+          # 创建发布包
+          $version = git describe --tags --abbrev=0
+          $zipName = "musicplayer-windows-$version.zip"
+          
+          # 创建临时目录
+          New-Item -ItemType Directory -Path "release"
+          Copy-Item musicplayer.exe release/
+          Copy-Item *.dll release/
+          Copy-Item -Recurse resources release/
+          
+          # 创建ZIP包
+          Compress-Archive -Path release/* -DestinationPath $zipName
+          
+          Write-Host "Created release package: $zipName"
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            musicplayer-windows-*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload individual files (backup)
+        if: always()
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            musicplayer.exe
+            tag.dll
+            avcodec-*.dll
+            avformat-*.dll
+            avutil-*.dll
+            swresample-*.dll
+            resources/icon.png
+        env:
+          GITHUB_TOKEN: ${{ secrets.A }}

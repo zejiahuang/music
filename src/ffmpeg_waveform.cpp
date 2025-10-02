@@ -64,10 +64,12 @@ QVector<float> extractWaveformFFmpeg(const QString &filePath, int samplePoints) 
         return waveform;
     }
     
-    // 创建重采样上下文
+    // 创建重采样上下文 - 使用旧版API兼容更多FFmpeg版本
     SwrContext *swr_ctx = swr_alloc();
-    av_opt_set_chlayout(swr_ctx, "in_chlayout", &codec_ctx->ch_layout, 0);
-    av_opt_set_int(swr_ctx, "out_chlayout", AV_CH_LAYOUT_MONO, 0);
+    av_opt_set_int(swr_ctx, "in_channel_count", codec_ctx->channels, 0);
+    av_opt_set_int(swr_ctx, "out_channel_count", 1, 0);
+    av_opt_set_int(swr_ctx, "in_channel_layout", codec_ctx->channel_layout, 0);
+    av_opt_set_int(swr_ctx, "out_channel_layout", AV_CH_LAYOUT_MONO, 0);
     av_opt_set_int(swr_ctx, "in_sample_rate", codec_ctx->sample_rate, 0);
     av_opt_set_int(swr_ctx, "out_sample_rate", codec_ctx->sample_rate, 0);
     av_opt_set_sample_fmt(swr_ctx, "in_sample_fmt", codec_ctx->sample_fmt, 0);

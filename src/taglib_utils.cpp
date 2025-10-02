@@ -13,7 +13,7 @@ QString TStringToQString(const TagLib::String &str) {
 SongInfo readAudioMeta(const QString &filePath) {
     SongInfo s;
     s.filePath = filePath;
-    TagLib::FileRef f(filePath.toStdString()。c_str());
+    TagLib::FileRef f(filePath.toStdString().c_str());
     if (!f.isNull() && f.tag()) {
         TagLib::标签 *tag = f.tag();
         s.title = TStringToQString(tag->title());

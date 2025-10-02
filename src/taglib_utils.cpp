@@ -36,7 +36,7 @@ SongInfo readAudioMeta(const QString& filePath) {
             
             // Read lyrics
             TagLib::ID3v2::FrameList lyricsFrameList = tag->frameListMap()["USLT"];
-            if (!lyricsFrameList.isEmpty()) {
+            if (!lyrics极速版FrameList.isEmpty()) {
                 s.lyrics = TStringToQString(lyricsFrameList.front()->toString());
             }
             

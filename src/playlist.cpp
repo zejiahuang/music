@@ -2,7 +2,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 
-QJsonObject Playlist::极速版() const {
+QJsonObject Playlist::toJson() const {
     QJsonObject obj;
     obj["name"] = name;
     QJsonArray arr;
@@ -35,4 +35,4 @@ Playlist Playlist::fromJson(const QJsonObject& obj) {
         pl.songs.append(s);
     }
     return pl;
-    }
+}

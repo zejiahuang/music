@@ -30,7 +30,7 @@ SongInfo readAudioMeta(const QString &filePath) {
             if (!picFrames.isEmpty()) {
                 auto *pic = dynamic_cast<TagLib::ID3v2::AttachedPictureFrame *>(picFrames.front());
                 QByteArray imgData = QByteArray::fromRawData(pic->picture().data(), pic->picture().size());
-                s.cover。loadFromData(imgData);
+                s.cover.loadFromData(imgData);
             }
         }
     }

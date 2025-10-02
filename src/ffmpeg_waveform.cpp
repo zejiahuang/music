@@ -38,7 +38,7 @@ QVector<float> extractWaveformFFmpeg(const QString& filePath, int samplePoints) 
     
     // Get decoder
     AVCodecParameters* codecpar = fmt_ctx->streams[audio_stream_index]->codecpar;
-    const AVCodec* dec = avcode极速版_find_decoder(codecpar->codec_id);
+    const AVCodec* dec = avcodec_find_decoder(codecpar->codec_id);
     if (!dec) {
         avformat_close_input(&fmt_ctx);
         return waveform;

@@ -37,3 +37,38 @@ void PlaylistManager::scanMusicFolders(const QString &musicRootDir, const QStrin
         }
     }
 }
+
+void PlaylistManager::loadPlaylists(const QString &myMusicDir) {
+    // 实现加载播放列表的逻辑
+    QDir dir(myMusicDir);
+    QStringList filters = {"*.json"};
+    for (const QString &file : dir.entryList(filters, QDir::Files)) {
+        QString filePath = dir.absoluteFilePath(file);
+        QFile f(filePath);
+        if (f.open(QIODevice::ReadOnly)) {
+            QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
+            Playlist pl = Playlist::fromJson(doc.object());
+            playlists.append(pl);
+            f.close();
+        }
+    }
+}
+
+void PlaylistManager::savePlaylists(const QString &myMusicDir) {
+    // 确保目录存在
+    QDir dir(myMusicDir);
+    if (!dir.exists()) {
+        dir.mkpath(".");
+    }
+    
+    // 保存所有播放列表
+    for (const Playlist &pl : playlists) {
+        QString filePath = myMusicDir + "/" + pl.name + ".json";
+        QFile f(filePath);
+        if (f.open(QIODevice::WriteOnly)) {
+            QJsonDocument doc(pl.toJson());
+            f.write(doc.toJson());
+            f.close();
+        }
+    }
+}

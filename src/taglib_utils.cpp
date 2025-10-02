@@ -25,7 +25,7 @@ SongInfo readAudioMeta(const QString &filePath) {
             auto *tag = mp3File.ID3v2Tag();
             auto lyricsFrame = tag->frameListMap()["USLT"];
             if (!lyricsFrame.isEmpty())
-                s.lyrics = QString::fromStdString(lyricsFrame.front()->toString()。to8Bit(true));
+                s.lyrics = QString::fromStdString(lyricsFrame.front()->toString().to8Bit(true));
             auto picFrames = tag->frameList("APIC");
             if (!picFrames.isEmpty()) {
                 auto *pic = dynamic_cast<TagLib::ID3v2::AttachedPictureFrame *>(picFrames.front());

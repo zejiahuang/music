@@ -66,7 +66,7 @@ void PlaylistManager::savePlaylists(const QString& myMusicDir) {
         QString filePath = myMusicDir + "/" + pl.name + ".json";
         QFile f(filePath);
         if (f.open(QIODevice::WriteOnly)) {
-            QJsonDocument doc(pl极速版.toJson());
+            QJsonDocument doc(pl.toJson());
             f.write(doc.toJson());
             f.close();
         }

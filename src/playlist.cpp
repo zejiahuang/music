@@ -22,7 +22,7 @@ QJsonObject Playlist::toJson() const {
 
 Playlist Playlist::fromJson(const QJsonObject &obj) {
     Playlist pl;
-    pl.name = obj["name"]。toString();
+    pl.name = obj["name"].toString();
     for (const auto& v : obj["songs"].toArray()) {
         QJsonObject so = v.toObject();
         SongInfo s;
@@ -30,9 +30,9 @@ Playlist Playlist::fromJson(const QJsonObject &obj) {
         s.title = so["title"].toString();
         s.artist = so["artist"].toString();
         s.album = so["album"].toString();
-        s.durationMs = so["durationMs"]。toString()。toLongLong();
-        s.lyrics = so["lyrics"]。toString();
-        pl.songs。append(s);
+        s.durationMs = so["durationMs"].toString().toLongLong();
+        s.lyrics = so["lyrics"].toString();
+        pl.songs.append(s);
     }
     return pl;
-    }
+}

@@ -144,7 +144,9 @@ void LyricsVisualWidget::paintEvent(QPaintEvent *event) {
             painter.drawText(lineRect, Qt::AlignLeft | Qt::AlignVCenter, left);
             
             painter.setPen(normalColor);
-            painter.drawText(lineRect.adjusted(leftWidth, 0， 0, 0), Qt::AlignLeft | Qt::AlignVCenter, right);
+            QRect rightRect = lineRect;
+            rightRect.setLeft(lineRect.left() + leftWidth);
+            painter.drawText(rightRect, Qt::AlignLeft | Qt::AlignVCenter, right);
             
             painter.restore();
         } else {

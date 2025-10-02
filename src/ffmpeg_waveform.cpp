@@ -3,6 +3,7 @@ extern "C" {
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
 #include <libswresample/swresample.h>
+#include <libavutil/opt.h>
 }
 #include <cmath>
 
@@ -64,15 +65,22 @@ QVector<float> extractWaveformFFmpeg(const QString &filePath, int samplePoints) 
         return waveform;
     }
     
-    // 创建重采样上下文 - 使用旧版API兼容更多FFmpeg版本
+    // 创建重采样上下文 - 使用新版API
     SwrContext *swr_ctx = swr_alloc();
-    av_opt_set_int(swr_ctx, "in_channel_count", codec_ctx->channels, 0);
+    if (!swr_ctx) {
+        avcodec_free_context(&codec_ctx);
+        avformat_close_input(&fmt_ctx);
+        return waveform;
+    }
+    
+    // 设置重采样参数
+    av_opt_set_int(swr_ctx, "in_channel_count", codecpar->channels, 0);
     av_opt_set_int(swr_ctx, "out_channel_count", 1, 0);
-    av_opt_set_int(swr_ctx, "in_channel_layout", codec_ctx->channel_layout, 0);
+    av_opt_set_int(swr_ctx, "in_channel_layout", codecpar->channel_layout, 0);
     av_opt_set_int(swr_ctx, "out_channel_layout", AV_CH_LAYOUT_MONO, 0);
-    av_opt_set_int(swr_ctx, "in_sample_rate", codec_ctx->sample_rate, 0);
-    av_opt_set_int(swr_ctx, "out_sample_rate", codec_ctx->sample_rate, 0);
-    av_opt_set_sample_fmt(swr_ctx, "in_sample_fmt", codec_ctx->sample_fmt, 0);
+    av_opt_set_int(swr_ctx, "in_sample_rate", codecpar->sample_rate, 0);
+    av_opt_set_int(swr_ctx, "out_sample_rate", codecpar->sample_rate, 0);
+    av_opt_set_sample_fmt(swr_ctx, "in_sample_fmt", static_cast<AVSampleFormat>(codecpar->format), 0);
     av_opt_set_sample_fmt(swr_ctx, "out_sample_fmt", AV_SAMPLE_FMT_FLT, 0);
     
     if (swr_init(swr_ctx) < 0) {
@@ -101,7 +109,7 @@ QVector<float> extractWaveformFFmpeg(const QString &filePath, int samplePoints) 
                                                (const uint8_t **)frame->data, frame->nb_samples);
                     
                     if (converted > 0) {
-                        float *out = (float *)out_data[0];
+                        float *out = reinterpret_cast<float *>(out_data[0]);
                         // 收集样本
                         for (int i = 0; i < converted; i++) {
                             samples.append(out[i]);

@@ -27,22 +27,8 @@ jobs:
           git clone https://github.com/microsoft/vcpkg.git
           .\vcpkg\bootstrap-vcpkg.bat
           .\vcpkg\vcpkg install taglib:x64-windows
-          .\vcpkg\v极速版cpkg install ffmpeg:x64-windows
+          .\vcpkg\vcpkg install ffmpeg:x64-windows
           .\vcpkg\vcpkg install pkgconf:x64-windows
-
-      - name: Clean source files from invalid characters
-        run: |
-          # 清理所有源文件中的非法字符
-          $files = Get-ChildItem -Recurse -Include *.h, *.cpp -File
-          foreach ($file in $files) {
-              $content = Get-Content -Path $file.FullName -Raw -Encoding UTF8
-              # 移除所有非ASCII字符
-              $cleanContent = $content -replace '[^\x00-\x7F]', ''
-              if ($content -ne $cleanContent) {
-                  Write-Host "Cleaning invalid characters in $($file.FullName)"
-                  Set-Content -Path $file.FullName -Value $cleanContent -NoNewline -Encoding UTF8
-              }
-          }
 
       - name: Configure CMake
         run: |
@@ -104,20 +90,5 @@ jobs:
         with:
           files: |
             musicplayer-windows-*.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload individual files (backup)
-        if: always()
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            musicplayer.exe
-            tag.dll
-            avcodec-*.dll
-            avformat-*.dll
-            avutil-*.dll
-            swresample-*.dll
-            resources/icon.png
         env:
           GITHUB_TOKEN: ${{ secrets.A }}

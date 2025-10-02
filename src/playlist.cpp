@@ -1,38 +1,74 @@
-#include "playlist.h"
-#include <QJsonObject>
-#include <QJsonArray>
+#include "playlistmanager.h"
+#include <QDir>
+#include <QFile>
+#include <QJsonDocument>
+#include "taglib_utils.h"
+#include "ffmpeg_waveform.h"
 
-QJsonObject Playlist::toJson() const {
-    QJsonObject obj;
-    obj["name"] = name;
-    QJsonArray arr;
-    for (const auto& s : songs) {
-        QJsonObject so;
-        so["filePath"] = s.filePath;
-        so["title"] = s.title;
-        so["artist"] = s.artist;
-        so["album"] = s.album;
-        so["durationMs"] = QString::number(s.durationMs);
-        so["lyrics"] = s.lyrics;
-        arr.append(so);
+void PlaylistManager::scanMusicFolders(const QString& musicRootDir, const QString& myMusicDir) {
+    QDir musicDir(musicRootDir);
+    for (const QString& folderName : musicDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+        QString folderPath = musicDir.absoluteFilePath(folderName);
+        QString playlistJsonPath = myMusicDir + "/" + folderName + ".json";
+        
+        if (QFile::exists(playlistJsonPath)) {
+            continue;
+        }
+        
+        Playlist pl;
+        pl.name = folderName;
+        QDir fdir(folderPath);
+        QStringList filters = {"*.mp3", "*.flac", "*.wav", "*.ape", "*.aac", "*.ogg", "*.m4a"};
+        
+        for (const QString& musicFile : fdir.entryList(filters, QDir::Files)) {
+            QString fullPath = fdir.absoluteFilePath(musicFile);
+            SongInfo s = readAudioMeta(fullPath);
+            s.waveform = extractWaveformFFmpeg(fullPath, 256);
+            pl.songs。append(s);
+        }
+        
+        playlists.append(pl);
+        
+        QFile f(playlistJsonPath);
+        if (f.open(QIODevice::WriteOnly)) {
+            QJsonDocument doc(pl.toJson());
+            f.write(doc.toJson());
+            f.close();
+        }
     }
-    obj["songs"] = arr;
-    return obj;
 }
 
-Playlist Playlist::fromJson(const QJsonObject& obj) {
-    Playlist pl;
-    pl.name = obj["name"].toString();
-    for (const auto& v : obj["songs"].toArray()) {
-        QJsonObject so = v.toObject();
-        SongInfo s;
-        s.filePath = so["filePath"].toString();
-        s.title = so["title"].toString();
-        s.artist = so["artist"].toString();
-        s.album = so["album"].toString();
-        s.durationMs = so["durationMs"].toString().toLongLong();
-        s.lyrics = so["lyrics"].toString();
-        pl.songs.append(s);
+void PlaylistManager::loadPlaylists(const QString& myMusicDir) {
+    // Implement loading playlists logic
+    QDir dir(myMusicDir);
+    QStringList filters = {"*.json"};
+    for (const QString& file : dir.entryList(filters, QDir::Files)) {
+        QString filePath = dir.absoluteFilePath(file);
+        QFile f(filePath);
+        if (f.open(QIODevice::ReadOnly)) {
+            QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
+            Playlist pl = Playlist::fromJson(doc.object());
+            playlists.append(pl);
+            f.close();
+        }
     }
-    return pl;
+}
+
+void PlaylistManager::savePlaylists(const QString& myMusicDir) {
+    // Ensure directory exists
+    QDir dir(myMusicDir);
+    if (!dir.exists()) {
+        dir.mkpath(".");
+    }
+    
+    // Save all playlists
+    for (const Playlist& pl : playlists) {
+        QString filePath = myMusicDir + "/" + pl.name + ".json";
+        QFile f(filePath);
+        if (f.open(QIODevice::WriteOnly)) {
+            QJsonDocument doc(pl.toJson());
+            f.write(doc.toJson());
+            f.close();
+        }
+    }
 }

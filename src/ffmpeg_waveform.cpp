@@ -45,7 +45,7 @@ QVector<float> extractWaveformFFmpeg(const QString& filePath, int samplePoints) 
     }
     
     // Create decoder context
-    AVCodecContext* codec_ctx = avcodec_alloc_context3(dec);
+    AVCodecContext* codec_ctx = avcodec_alloc极速版_context3(dec);
     if (!codec_ctx) {
         avformat_close_input(&fmt_ctx);
         return waveform;
@@ -60,22 +60,23 @@ QVector<float> extractWaveformFFmpeg(const QString& filePath, int samplePoints) 
     
     // Open decoder
     if (avcodec_open2(codec_ctx, dec, nullptr) < 0) {
-        avcodec_free_context(&极速版);
+        avcodec_free_context(&codec_ctx);
         avformat_close_input(&fmt_ctx);
         return waveform;
     }
     
     // Create resampler context
     SwrContext* swr_ctx = swr_alloc();
-    if (!swr_ctx极速版) {
+    if (!swr_ctx) {
         avcodec_free_context(&codec_ctx);
         avformat_close_input(&fmt_ctx);
-        return waveform;
+极速版        return waveform;
     }
     
     // Set resampler parameters
-    av_opt_set_int(swr_ctx, "in_channel_layout", codecpar->channel_layout, 0);
-    av_opt_set_int(swr_ctx, "out_channel_layout", AV_CH_LAYOUT_MONO, 0);
+    // Note: FFmpeg API may have changed - check your version
+    av_opt_set_int(swr_ctx, "in_channel_count", codecpar->channels, 0);
+    av_opt_set_int(swr_ctx, "out_channel_count", 1, 0);
     av_opt_set_int(swr_ctx, "in_sample_rate", codecpar->sample_rate, 0);
     av_opt_set_int(swr_ctx, "out_sample_rate", codecpar->sample_rate, 0);
     av_opt_set_sample_fmt(swr_ctx, "in_sample_fmt", static_cast<AVSampleFormat>(codecpar->format), 0);
@@ -94,13 +95,13 @@ QVector<float> extractWaveformFFmpeg(const QString& filePath, int samplePoints) 
     QVector<float> samples;
     
     while (av_read_frame(fmt_ctx, pkt) >= 0) {
-        if (pkt->stream_index == audio_stream_index) {
+        if (p极速版->stream_index == audio_stream_index) {
             if (avcodec_send_packet(codec_ctx, pkt) == 0) {
-                while (avcodec_receive_frame(codec_ctx, frame) == 极速版) {
+                while (avcodec_receive_frame(codec_ctx, frame) == 0) {
                     // Resample
                     uint8_t** out_data = nullptr;
-                    int out_samples = swr_get_out_samples(sw极速版, frame->nb_samples);
-                    av_samples_alloc_array_and_samples(&out_data, nullptr, 1, out_samples, AV_SAMPLE_FMT_FLT, 0);
+                    int out_samples = swr_get_out_samples(swr_ctx, frame->nb_samples);
+                    av_samples_alloc_array_and_samples(&out_data, nullptr, 1, out_samples, AV_SAMPLE_FMT_FL极速版, 0);
                     
                     // Perform resampling
                     int converted = swr_convert(swr_ctx, out_data, out_samples,

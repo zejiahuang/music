@@ -7,9 +7,6 @@ set(CMAKE_AUTOUIC ON)
 
 find_package(Qt5 COMPONENTS Widgets REQUIRED)
 
-# 手动指定 vcpkg 安装路径（你可以根据 workflow实际路径调整）
-set(VCPKG_DIR "${CMAKE_SOURCE_DIR}/vcpkg/installed/x64-windows")
-
 add_executable(musicplayer
     src/main.cpp
     src/playerwindow.cpp

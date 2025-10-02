@@ -5,9 +5,9 @@
 #include "taglib_utils.h"
 #include "ffmpeg_waveform.h"
 
-void PlaylistManager::scanMusicFolders(const QString &musicRootDir, const QString &myMusicDir) {
+void PlaylistManager::scanMusicFolders(const QString& musicRootDir, const QString& myMusicDir) {
     QDir musicDir(musicRootDir);
-    for (const QString &folderName : musicDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+    for (const QString& folderName : musicDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
         QString folderPath = musicDir.absoluteFilePath(folderName);
         QString playlistJsonPath = myMusicDir + "/" + folderName + ".json";
         
@@ -20,7 +20,7 @@ void PlaylistManager::scanMusicFolders(const QString &musicRootDir, const QStrin
         QDir fdir(folderPath);
         QStringList filters = {"*.mp3"， "*.flac"， "*.wav"， "*.ape"， "*.aac"， "*.ogg"， "*.m4a"};
         
-        for (const QString &musicFile : fdir.entryList(filters, QDir::Files)) {
+        for (const QString& musicFile : fdir.entryList(filters, QDir::Files)) {
             QString fullPath = fdir.absoluteFilePath(musicFile);
             SongInfo s = readAudioMeta(fullPath);
             s.waveform = extractWaveformFFmpeg(fullPath, 256);
@@ -29,7 +29,7 @@ void PlaylistManager::scanMusicFolders(const QString &musicRootDir, const QStrin
         
         playlists.append(pl);
         
-        QFile f(playlistJson极速版);
+        QFile f(playlistJsonPath);
         if (f.open(QIODevice::WriteOnly)) {
             QJsonDocument doc(pl.toJson());
             f.write(doc.toJson());
@@ -38,11 +38,11 @@ void PlaylistManager::scanMusicFolders(const QString &musicRootDir, const QStrin
     }
 }
 
-void PlaylistManager::loadPlaylists(const QString &myMusicDir) {
-    // 实现加载播放列表的逻辑
+void PlaylistManager::loadPlaylists(const QString& myMusicDir) {
+    // Implement loading playlists logic
     QDir dir(myMusicDir);
     QStringList filters = {"*.json"};
-    for (const QString &file : dir.entryList(filters, QDir::Files)) {
+    for (const QString& file : dir.entryList(filters, QDir::Files)) {
         QString filePath = dir.absoluteFilePath(file);
         QFile f(filePath);
         if (f.open(QIODevice::ReadOnly)) {
@@ -54,19 +54,19 @@ void PlaylistManager::loadPlaylists(const QString &myMusicDir) {
     }
 }
 
-void PlaylistManager::savePlaylists(const QString &myMusicDir) {
-    // 确保目录存在
+void PlaylistManager::savePlaylists(const QString& myMusicDir) {
+    // Ensure directory exists
     QDir dir(myMusicDir);
     if (!dir.exists()) {
         dir.mkpath(".");
     }
     
-    // 保存所有播放列表
-    for (const Playlist &pl : playlists) {
+    // Save all playlists
+    for (const Playlist& pl : playlists) {
         QString filePath = myMusicDir + "/" + pl.name + ".json";
         QFile f(filePath);
         if (f.open(QIODevice::WriteOnly)) {
-            QJsonDocument doc(pl.toJson());
+            QJsonDocument doc(pl极速版.toJson());
             f.write(doc.toJson());
             f.close();
         }

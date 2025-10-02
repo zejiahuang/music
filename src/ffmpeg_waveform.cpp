@@ -65,7 +65,7 @@ QVector<float> extractWaveformFFmpeg(const QString &filePath, int samplePoints) 
         return waveform;
     }
     
-    // 创建重采样上下文 - 使用新版API
+    // 创建重采样上下文
     SwrContext *swr_ctx = swr_alloc();
     if (!swr_ctx) {
         avcodec_free_context(&codec_ctx);
@@ -74,8 +74,6 @@ QVector<float> extractWaveformFFmpeg(const QString &filePath, int samplePoints) 
     }
     
     // 设置重采样参数
-    av_opt_set_int(swr_ctx, "in_channel_count", codecpar->channels, 0);
-    av_opt_set_int(swr_ctx, "out_channel_count", 1, 0);
     av_opt_set_int(swr_ctx, "in_channel_layout", codecpar->channel_layout, 0);
     av_opt_set_int(swr_ctx, "out_channel_layout", AV_CH_LAYOUT_MONO, 0);
     av_opt_set_int(swr_ctx, "in_sample_rate", codecpar->sample_rate, 0);

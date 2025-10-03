@@ -17,8 +17,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # 获取完整历史记录以便检测标签
 
       - name: Create missing header files
         shell: pwsh
@@ -60,7 +58,7 @@ jobs:
           
           @"
           #pragma once
-          #极速版include <QString>
+          #include <QString>
           #include "songinfo.h"
           
           SongInfo readAudioMeta(const QString &filePath);
@@ -82,7 +80,7 @@ jobs:
           
           class PlaylistManager {
           public:
-              Q极速版List<Playlist> playlists;
+              QList<Playlist> playlists;
               void scanMusicFolders(const QString &musicRootDir, const QString &myMusicDir);
               void loadPlaylists(const QString &myMusicDir);
               void savePlaylists(const QString &myMusicDir);
@@ -93,7 +91,7 @@ jobs:
           #pragma once
           #include <QString>
           #include <QImage>
-          #include <极速版QVector>
+          #include <QVector>
           
           struct SongInfo {
               QString filePath;
@@ -105,7 +103,7 @@ jobs:
               QImage cover;
               QVector<float> waveform;
           };
-          "@ | Out-File -FilePath src/song极速版info.h -Encoding utf8
+          "@ | Out-File -FilePath src/songinfo.h -Encoding utf8
           
           @"
           #pragma once
@@ -162,10 +160,10 @@ jobs:
           public:
               bool isPlaying = false;
               qint64 currentPosition = 0;
-             极速版 qint64 totalDuration = 0;
+              qint64 totalDuration = 0;
           };
           
-          FFmpegPlayer::FFmpegPlayer极速版(QObject *parent) : QObject(parent), d(new Private) {}
+          FFmpegPlayer::FFmpegPlayer(QObject *parent) : QObject(parent), d(new Private) {}
           
           FFmpegPlayer::~FFmpegPlayer() {
               delete d;
@@ -197,13 +195,13 @@ jobs:
               emit playbackStopped();
           }
           
-          void FFmpegPlayer::seek(qint64 positionMs极速版) {
+          void FFmpegPlayer::seek(qint64 positionMs) {
               qDebug() << "Seek to:" << positionMs;
               d->currentPosition = positionMs;
               emit positionChanged(positionMs);
           }
           
-          qint极速版64 FFmpegPlayer::duration() const {
+          qint64 FFmpegPlayer::duration() const {
               return d->totalDuration;
           }
           
@@ -258,31 +256,10 @@ jobs:
           if (Test-Path "build/Release/musicplayer.exe") {
             Write-Host "✓ Build successful - musicplayer.exe found"
           } else {
-            Write-Host "✗✗ Build failed - musicplayer.exe not found"
+            Write-Host "✗ Build failed - musicplayer.exe not found"
             Get-ChildItem -Path build -Recurse -Name
             exit 1
           }
-
-      - name: Determine version
-        id: version
-        run: |
-          # 尝试从Git标签获取版本号
-          if git describe --tags --exact-match HEAD 2>/dev/null; then
-            VERSION=$(git describe --tags --exact-match HEAD)
-            echo "Using Git tag version: $VERSION"
-          else
-            # 如果没有标签，尝试从最近的标签和提交信息构建版本号
-            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-            COMMIT_COUNT=$(git rev-list --count $LATEST_TAG..HEAD)
-            COMMIT_HASH=$(git rev-parse --short HEAD)
-            VERSION="${LATEST_TAG}-${COMMIT_COUNT}-g${COMMIT_HASH}"
-            echo "Using derived version: $VERSION"
-          fi
-          
-          # 移除版本号前的'v'字符（如果存在）
-          VERSION=${VERSION#v}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-        shell: bash
 
       - name: Collect dependencies
         run: |
@@ -300,7 +277,7 @@ jobs:
           $vcpkgBinPath = "${{ env.VCPKG_DIR }}\installed\x64-windows\bin"
           Copy-Item "$vcpkgBinPath/tag.dll" -Destination "release/"
           Copy-Item "$vcpkgBinPath/avcodec-*.dll" -Destination "release/"
-          Copy-Item "$vcpkgBinPath/avformat-*.极速版dll" -Destination "release/"
+          Copy-Item "$vcpkgBinPath/avformat-*.dll" -Destination "release/"
           Copy-Item "$vcpkgBinPath/avutil-*.dll" -Destination "release/"
           Copy-Item "$vcpkgBinPath/swresample-*.dll" -Destination "release/"
           
@@ -311,9 +288,14 @@ jobs:
 
       - name: Create release package
         run: |
-          $version = "${{ steps.version.outputs.version }}"
-          if ([string]::IsNullOrEmpty($version)) {
-            Write-Host "Warning: No version determined, using default version"
+          # 尝试获取Git标签，如果失败则使用默认版本
+          try {
+            $version = git describe --tags --abbrev=0 2>$null
+            if ([string]::IsNullOrEmpty($version)) {
+              throw "No tags found"
+            }
+          } catch {
+            Write-Host "Warning: No Git tags found, using default version"
             $version = "dev"
           }
           
@@ -322,15 +304,11 @@ jobs:
           
           Write-Host "Created release package: $zipName"
           Get-ChildItem -Path $zipName
-          
-          # 总是成功退出
-          exit 0
-        shell: pwsh
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: musicplayer-windows-${{ steps.version.outputs.version }}
+          name: musicplayer-windows-${{ github.ref_name }}
           path: musicplayer-windows-*.zip
 
       - name: Create GitHub Release

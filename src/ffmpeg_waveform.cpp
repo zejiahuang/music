@@ -20,7 +20,7 @@ QVector<float> extractWaveformFFmpeg(const QString& filePath, int samplePoints) 
     }
     
     // Get stream info
-    if极速版avformat_find_stream_info(fmt_ctx, nullptr) < 0) {
+    if (avformat_find_stream_info(fmt_ctx, nullptr) < 0) {
         qWarning() << "Failed to find stream info";
         avformat_close_input(&fmt_ctx);
         return waveform;
@@ -35,7 +35,7 @@ QVector<float> extractWaveformFFmpeg(const QString& filePath, int samplePoints) 
         }
     }
     
-    if (audio_stream_index == -极速版1) {
+    if (audio_stream_index == -1) {
         qWarning() << "No audio stream found";
         avformat_close_input(&fmt_ctx);
         return waveform;
@@ -55,12 +55,12 @@ QVector<float> extractWaveformFFmpeg(const QString& filePath, int samplePoints) 
     if (!codec_ctx) {
         qWarning() << "Failed to allocate codec context";
         avformat_close_input(&fmt_ctx);
-极速版        return waveform;
+        return waveform;
     }
     
     // Copy parameters to decoder context
     if (avcodec_parameters_to_context(codec_ctx, codecpar) < 0) {
-        qWarning极速版() << "Failed to copy codec parameters";
+        qWarning() << "Failed to copy codec parameters";
         avcodec_free_context(&codec_ctx);
         avformat_close_input(&fmt_ctx);
         return waveform;
@@ -70,7 +70,7 @@ QVector<float> extractWaveformFFmpeg(const QString& filePath, int samplePoints) 
     if (avcodec_open2(codec_ctx, dec, nullptr) < 0) {
         qWarning() << "Failed to open codec";
         avcodec_free_context(&codec_ctx);
-        avformat_close_input(&fmt极速版_ctx);
+        avformat_close_input(&fmt_ctx);
         return waveform;
     }
     
@@ -84,15 +84,20 @@ QVector<float> extractWaveformFFmpeg(const QString& filePath, int samplePoints) 
     }
     
     // Set resampler parameters - 使用兼容性更好的API
-    int64_t in_ch_layout = av_get_default_channel_layout(codecpar->channels);
-    int64_t out_ch_layout = AV_CH_LAYOUT_MONO;
+    AVChannelLayout in_ch_layout = AV_CHANNEL_LAYOUT_STEREO;
+    AVChannelLayout out_ch_layout = AV_CHANNEL_LAYOUT_MONO;
     
-    av_opt_set_int(swr_ctx, "in_channel_layout", in_ch_layout, 0);
-    av_opt_set_int(swr_ctx, "out_channel_layout", out_ch_layout, 0);
+    // 如果原始音频只有一个声道，使用单声道布局
+    if (codecpar->ch_layout.nb_channels == 1) {
+        in_ch_layout = AV_CHANNEL_LAYOUT_MONO;
+    }
+    
+    av_opt_set_chlayout(swr_ctx, "in_chlayout", &in_ch_layout, 0);
+    av_opt_set_chlayout(swr_ctx, "out_chlayout", &out_ch_layout, 0);
     av_opt_set_int(swr_ctx, "in_sample_rate", codecpar->sample_rate, 0);
     av_opt_set_int(swr_ctx, "out_sample_rate", codecpar->sample_rate, 0);
     av_opt_set_sample_fmt(swr_ctx, "in_sample_fmt", static_cast<AVSampleFormat>(codecpar->format), 0);
-    av_opt_set_sample极速版_fmt(swr_ctx, "极速版out_sample_fmt", AV_SAMPLE_FMT_FLT, 0);
+    av_opt_set_sample_fmt(swr_ctx, "out_sample_fmt", AV_SAMPLE_FMT_FLT, 0);
     
     if (swr_init(swr_ctx) < 0) {
         qWarning() << "Failed to initialize resampler";
@@ -121,7 +126,7 @@ QVector<float> extractWaveformFFmpeg(const QString& filePath, int samplePoints) 
                     int out_samples = av_rescale_rnd(swr_get_delay(swr_ctx, codecpar->sample_rate) + 
                                                    frame->nb_samples, codecpar->sample_rate, codecpar->sample_rate, AV_ROUND_UP);
                     
-                    if (av_samples_alloc_array_and_samples(&out_data, nullptr, 1, out_samples, AV_SAMPLE_F极速版MT_FLT, 0) < 0) {
+                    if (av_samples_alloc_array_and_samples(&out_data, nullptr, 1, out_samples, AV_SAMPLE_FMT_FLT, 0) < 0) {
                         qWarning() << "Failed to allocate samples";
                         av_frame_unref(frame);
                         continue;
@@ -153,7 +158,7 @@ QVector<float> extractWaveformFFmpeg(const QString& filePath, int samplePoints) 
 cleanup:
     // Clean up resources
     if (frame) av_frame_free(&frame);
-    if (pkt) av_packet_free(&极速版pkt);
+    if (pkt) av_packet_free(&pkt);
     if (swr_ctx) swr_free(&swr_ctx);
     if (codec_ctx) avcodec_free_context(&codec_ctx);
     if (fmt_ctx) avformat_close_input(&fmt_ctx);

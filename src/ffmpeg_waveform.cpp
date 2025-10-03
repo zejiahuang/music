@@ -73,9 +73,9 @@ QVector<float> extractWaveformFFmpeg(const QString& filePath, int samplePoints) 
         return waveform;
     }
     
-    // Set resampler parameters
-    av_opt_set_int(swr_ctx, "in_channel_count", codecpar->channels, 0);
-    av_opt_set_int(swr_ctx, "out_channel_count", 1, 0);
+    // Set resampler parameters - updated for newer FFmpeg API
+    av_opt_set_channel_layout(swr_ctx, "in_channel_layout", codecpar->ch_layout, 0);
+    av_opt_set_channel_layout(swr_ctx, "out_channel_layout", AV_CH_LAYOUT_MONO, 0);
     av_opt_set_int(swr_ctx, "in_sample_rate", codecpar->sample_rate, 0);
     av_opt_set_int(swr_ctx, "out_sample_rate", codecpar->sample_rate, 0);
     av_opt_set_sample_fmt(swr_ctx, "in_sample_fmt", static_cast<AVSampleFormat>(codecpar->format), 0);

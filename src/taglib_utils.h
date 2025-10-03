@@ -1,5 +1,7 @@
 #pragma once
 #include <QString>
 #include "songinfo.h"
+#include <taglib/tstring.h>
 
-SongInfo readAudioMeta(const QString &filePath);
+QString TStringToQString(const TagLib::String& str);
+SongInfo readAudioMeta(const QString& filePath);

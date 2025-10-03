@@ -7,30 +7,32 @@
 #include <QDebug>
 
 // Helper function: Convert TagLib::String to QString
-QString TStringToQString(const TagLib::String& str) {
+QString TStringToQString(const TagLib::String& str)
+{
     return QString::fromUtf8(str.toCString(true));
 }
 
-SongInfo readAudioMeta(const QString& filePath) {
+SongInfo readAudioMeta(const QString& filePath) 
+{
     SongInfo s;
     s.filePath = filePath;
     
     // Use TagLib to read audio metadata
-    TagLib::FileRef f(filePath.toStdString().c_str());
+    TagLib::FileRef f(filePath.toStdString()。c_str());
     if (!f.isNull() && f.tag()) {
-        TagLib::Tag* tag = f.tag();
+        TagLib::标签* tag = f.tag();
         s.title = TStringToQString(tag->title());
         s.artist = TStringToQString(tag->artist());
         s.album = TStringToQString(tag->album());
     }
     
     if (f.audioProperties()) {
-        s.durationMs = f.audioProperties()->length() * 1000;
+        s.durationMs = f.audioProperties()->lengthInMilliseconds();
     }
     
     // Only process ID3v2 tags for MP3 files
     if (filePath.endsWith(".mp3", Qt::CaseInsensitive)) {
-        TagLib::MPEG::File mp3File(filePath.toStdString().c_str());
+        TagLib::MPEG::File mp3File(filePath.toStdString()。c_str());
         if (mp3File.ID3v2Tag()) {
             TagLib::ID3v2::Tag* tag = mp3File.ID3v2Tag();
             

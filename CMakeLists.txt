@@ -11,10 +11,10 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-# 设置输出目录
+# 设置输出目录 - 与测试脚本期望的路径一致
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 # 在Windows上使用静态运行时库
 if(MSVC)
@@ -170,6 +170,14 @@ add_custom_command(TARGET musicplayer PRE_BUILD
 # vcpkg自动管理依赖，不需要手动复制DLL
 if(WIN32)
     message(STATUS "Dependencies will be automatically handled by vcpkg")
+    
+    # 为测试脚本创建兼容性路径
+    add_custom_command(TARGET musicplayer POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/Release"
+        COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:musicplayer>" "${CMAKE_BINARY_DIR}/Release/"
+        COMMENT "Creating compatibility path for test scripts"
+        VERBATIM
+    )
 endif()
 
 # 添加测试目标（可选）

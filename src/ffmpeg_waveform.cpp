@@ -1,4 +1,5 @@
 #include "ffmpeg_waveform.h"
+#include <QDebug>  // 添加这行
 extern "C" {
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
@@ -82,36 +83,21 @@ QVector<float> extractWaveformFFmpeg(const QString& filePath, int samplePoints) 
         return waveform;
     }
     
-    // Set resampler parameters - UPDATED for newer FFmpeg API
-    // 处理输入通道布局
-    AVChannelLayout in_ch_layout = codecpar->ch_layout;
-    AVChannelLayout out_ch_layout;
-    av_channel_layout_default(&out_ch_layout, 1); // 单声道
-    
-    // 设置重采样参数
-    if (swr_alloc_set_opts2(&swr_ctx,
-                           &out_ch_layout, AV_SAMPLE_FMT_FLT, codecpar->sample_rate,
-                           &in_ch_layout, static_cast<AVSampleFormat>(codecpar->format), codecpar->sample_rate,
-                           0, nullptr) < 0) {
-        qWarning() << "Failed to set resampler options";
-        swr_free(&swr_ctx);
-        avcodec_free_context(&codec_ctx);
-        avformat_close_input(&fmt_ctx);
-        av_channel_layout_uninit(&out_ch_layout);
-        return waveform;
-    }
+    // Set resampler parameters
+    av_opt_set_channel_layout(swr_ctx, "in_channel_layout", codecpar->ch_layout.u.mask, 0);
+    av_opt_set_channel_layout(swr_ctx, "out_channel_layout", AV_CH_LAYOUT_MONO, 0);
+    av_opt_set_int(swr_ctx, "in_sample_rate", codecpar->sample_rate, 0);
+    av_opt_set_int(swr_ctx, "out_sample_rate", codecpar->sample_rate, 0);
+    av_opt_set_sample_fmt(swr_ctx, "in_sample_fmt", static_cast<AVSampleFormat>(codecpar->format), 0);
+    av_opt_set_sample_fmt(swr_ctx, "out_sample_fmt", AV_SAMPLE_FMT_FLT, 0);
     
     if (swr_init(swr_ctx) < 0) {
         qWarning() << "Failed to initialize resampler";
         swr_free(&swr_ctx);
         avcodec_free_context(&codec_ctx);
         avformat_close_input(&fmt_ctx);
-        av_channel_layout_uninit(&out_ch_layout);
         return waveform;
     }
-    
-    // 释放通道布局内存
-    av_channel_layout_uninit(&out_ch_layout);
     
     // Read and process audio data
     AVPacket* pkt = av_packet_alloc();
@@ -127,40 +113,49 @@ QVector<float> extractWaveformFFmpeg(const QString& filePath, int samplePoints) 
         if (pkt->stream_index == audio_stream_index) {
             if (avcodec_send_packet(codec_ctx, pkt) == 0) {
                 while (avcodec_receive_frame(codec_ctx, frame) == 0) {
-                    // 计算输出样本数 - UPDATED API
+                    // Resample
+                    uint8_t** out_data = nullptr;
                     int out_samples = av_rescale_rnd(swr_get_delay(swr_ctx, codecpar->sample_rate) + 
                                                    frame->nb_samples, codecpar->sample_rate, codecpar->sample_rate, AV_ROUND_UP);
                     
-                    // 分配输出缓冲区 - UPDATED API
-                    uint8_t* out_data = nullptr;
-                    int linesize;
-                    if (av_samples_alloc(&out_data, &linesize, 1, out_samples, AV_SAMPLE_FMT_FLT, 0) < 0) {
+                    if (av_samples_alloc_array_and_samples(&out_data, nullptr, 1, out_samples, AV_SAMPLE_FMT_FLT, 0) < 0) {
                         qWarning() << "Failed to allocate samples";
                         av_frame_unref(frame);
                         continue;
                     }
                     
-                    // 执行重采样 - UPDATED API
-                    int converted = swr_convert(swr_ctx, &out_data, out_samples,
+                    // Perform resampling
+                    int converted = swr_convert(swr_ctx, out_data, out_samples,
                                                (const uint8_t**)frame->data, frame->nb_samples);
                     
                     if (converted > 0) {
-                        float* out = reinterpret_cast<float*>(out_data);
-                        // 收集样本
+                        float* out = reinterpret_cast<float*>(out_data[0]);
+                        // Collect samples
                         for (int i = 0; i < converted; i++) {
                             samples.append(out[i]);
                         }
                     }
                     
-                    // 释放重采样缓冲区
-                    av_freep(&out_data);
+                    // Free resample buffer
+                    if (out_data) {
+                        av_freep(&out_data[0]);
+                        av_freep(&out_data);
+                    }
                 }
             }
         }
         av_packet_unref(pkt);
     }
     
-    // 生成波形数据
+cleanup:
+    // Clean up resources
+    if (frame) av_frame_free(&frame);
+    if (pkt) av_packet_free(&pkt);
+    if (swr_ctx) swr_free(&swr_ctx);
+    if (codec_ctx) avcodec_free_context(&codec_ctx);
+    if (fmt_ctx) avformat_close_input(&fmt_ctx);
+    
+    // Generate waveform data
     if (samples.size() > samplePoints) {
         int step = samples.size() / samplePoints;
         for (int i = 0; i < samplePoints; i++) {
@@ -173,17 +168,9 @@ QVector<float> extractWaveformFFmpeg(const QString& filePath, int samplePoints) 
             waveform.append(maxAmp);
         }
     } else {
-        // 如果样本数不足，直接使用所有样本
+        // If not enough samples, use all samples directly
         waveform = samples;
     }
-    
-cleanup:
-    // Clean up resources
-    if (frame) av_frame_free(&frame);
-    if (pkt) av_packet_free(&pkt);
-    if (swr_ctx) swr_free(&swr_ctx);
-    if (codec_ctx) avcodec_free_context(&codec_ctx);
-    if (fmt_ctx) avformat_close_input(&fmt_ctx);
     
     return waveform;
 }

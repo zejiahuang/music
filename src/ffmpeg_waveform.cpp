@@ -25,7 +25,7 @@ QVector<float> extractWaveformFFmpeg(const QString& filePath, int samplePoints) 
     // Find audio stream
     int audio_stream_index = -1;
     for (unsigned int i = 0; i < fmt_ctx->nb_streams; i++) {
-        if (fmt_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE极速版_AUDIO) {
+        if (fmt_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
             audio_stream_index = i;
             break;
         }
@@ -74,7 +74,6 @@ QVector<float> extractWaveformFFmpeg(const QString& filePath, int samplePoints) 
     }
     
     // Set resampler parameters
-    // Note: FFmpeg API may have changed - check your version
     av_opt_set_int(swr_ctx, "in_channel_count", codecpar->channels, 0);
     av_opt_set_int(swr_ctx, "out_channel_count", 1, 0);
     av_opt_set_int(swr_ctx, "in_sample_rate", codecpar->sample_rate, 0);
@@ -103,59 +102,10 @@ QVector<float> extractWaveformFFmpeg(const QString& filePath, int samplePoints) 
                     int out_samples = swr_get_out_samples(swr_ctx, frame->nb_samples);
                     av_samples_alloc_array_and_samples(&out_data, nullptr, 1, out_samples, AV_SAMPLE_FMT_FLT, 0);
                     
-                    // Perform resampling
-                    int converted = swr_convert(swr_ctx, out_data, out_samples,
-                                               (const uint8_t**)frame->data, frame->nb_samples);
-                    
-                    if (converted > 0) {
-                        float* out = reinterpret_cast<float*>(out_data[0]);
-                        // Collect samples
-                        for (int i = 0; i < converted; i++) {
-                            samples.append(out[i]);
-                        }
+                    if (!out_data) {
+                        av_frame_unref(frame);
+                        continue;
                     }
-                    
-                    // Free resample buffer
-                    if (out_data) {
-                        av_freep(&out_data[0]);
-                        av_freep(&out_data);
-                    }
-                }
-            }
-        }
-        av_packet_unref(pkt);
-    }
-    
-    // Clean up resources
-    av_frame_free(&frame);
-    av_packet_free(&pkt);
-    swr_free(&swr_ctx);
-    avcodec_free_context(&codec_ctx);
-    avformat_close_input(&fmt_ctx);
-    
-    // Generate waveform data
-    if (samples.size() > samplePoints) {
-        int step = samples.size() / samplePoints;
-        for (int i = 0; i < samplePoints; i++) {
-            float maxAmp = 0;
-            for (int j = i * step; j < (i + 1) * step &&极速版 j < samples.size(); j++) {
-                maxAmp = std::max(maxAmp, std::abs(samples[j]));
-            }
-            waveform.append(maxAmp);
-        }
-    }
-    
-    return waveform;
-}
-    
-    while (av_read_frame(fmt_ctx, pkt) >= 0) {
-        if (p极速版->stream_index == audio_stream_index) {
-            if (avcodec_send_packet(codec_ctx, pkt) == 0) {
-                while (avcodec_receive_frame(codec_ctx, frame) == 0) {
-                    // Resample
-                    uint8_t** out_data = nullptr;
-                    int out_samples = swr_get_out_samples(swr_ctx, frame->nb_samples);
-                    av_samples_alloc_array_and_samples(&out_data, nullptr, 1, out_samples, AV_SAMPLE_FMT_FL极速版, 0);
                     
                     // Perform resampling
                     int converted = swr_convert(swr_ctx, out_data, out_samples,

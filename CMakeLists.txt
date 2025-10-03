@@ -24,19 +24,17 @@ endif()
 # 查找Qt5组件
 find_package(Qt5 COMPONENTS Widgets REQUIRED)
 
-# 查找TagLib和FFmpeg组件
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(TAGLIB REQUIRED taglib)
-pkg_check_modules(FFMPEG REQUIRED libavformat libavcodec libavutil libswresample)
+# 查找TagLib和FFmpeg组件 - 使用vcpkg的CMake集成
+find_package(taglib CONFIG REQUIRED)
 
-# 包含目录
-include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui
-    ${TAGLIB_INCLUDE_DIRS}
-    ${FFMPEG_INCLUDE_DIRS}
-)
+# 尝试使用CMake方式查找FFmpeg，如果失败则使用PkgConfig
+find_package(FFMPEG QUIET)
+if(NOT FFMPEG_FOUND)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(FFMPEG REQUIRED libavformat libavcodec libavutil libswresample)
+else()
+    message(STATUS "Using CMake-based FFmpeg configuration")
+endif()
 
 # 添加可执行文件
 add_executable(musicplayer
@@ -50,12 +48,31 @@ add_executable(musicplayer
     src/ffmpegplayer.cpp
 )
 
+# 包含目录
+target_include_directories(musicplayer PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui
+)
+
+# 添加FFmpeg包含目录（只在使用PkgConfig时）
+if(NOT TARGET FFMPEG::avformat AND FFMPEG_INCLUDE_DIRS)
+    target_include_directories(musicplayer PRIVATE ${FFMPEG_INCLUDE_DIRS})
+endif()
+
 # 链接库
 target_link_libraries(musicplayer
     Qt5::Widgets
-    ${TAGLIB_LIBRARIES}
-    ${FFMPEG_LIBRARIES}
+    TagLib::tag
 )
+
+# 根据FFmpeg配置方式添加链接库
+if(TARGET FFMPEG::avformat)
+    target_link_libraries(musicplayer FFMPEG::avformat FFMPEG::avcodec FFMPEG::avutil FFMPEG::swresample)
+else()
+    target_link_libraries(musicplayer ${FFMPEG_LIBRARIES})
+    target_link_directories(musicplayer PRIVATE ${FFMPEG_LIBRARY_DIRS})
+endif()
 
 # 设置目标属性
 set_target_properties(musicplayer PROPERTIES
@@ -79,14 +96,7 @@ install(TARGETS musicplayer
 
 # 安装依赖库（Windows）
 if(WIN32)
-    install(FILES
-        ${TAGLIB_LIBRARY_DIRS}/tag.dll
-        ${FFMPEG_LIBRARY_DIRS}/avcodec-${FFMPEG_VERSION}.dll
-        ${FFMPEG_LIBRARY_DIRS}/avformat-${FFMPEG_VERSION}.dll
-        ${FFMPEG_LIBRARY_DIRS}/avutil-${FFMPEG_VERSION}.dll
-        ${FFMPEG_LIBRARY_DIRS}/swresample-${FFMPEG_VERSION}.dll
-        DESTINATION bin
-    )
+    message(STATUS "Dependencies managed by vcpkg - no manual DLL copying needed")
 endif()
 
 # 添加资源文件
@@ -157,18 +167,9 @@ add_custom_command(TARGET musicplayer PRE_BUILD
     VERBATIM
 )
 
-# 添加安装后步骤，用于在Windows上复制依赖项
+# vcpkg自动管理依赖，不需要手动复制DLL
 if(WIN32)
-    add_custom_command(TARGET musicplayer POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory \"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/dependencies\"
-        COMMAND ${CMAKE_COMMAND} -E copy \"${TAGLIB_LIBRARY_DIRS}/tag.dll\" \"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/dependencies/\"
-        COMMAND ${CMAKE_COMMAND} -E copy \"${FFMPEG_LIBRARY_DIRS}/avcodec-${FFMPEG_VERSION}.dll\" \"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/dependencies/\"
-        COMMAND ${CMAKE_COMMAND} -E copy \"${FFMPEG_LIBRARY_DIRS}/avformat-${FFMPEG_VERSION}.dll\" \"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/dependencies/\"
-        COMMAND ${CMAKE_COMMAND} -E copy \"${FFMPEG_LIBRARY_DIRS}/avutil-${FFMPEG_VERSION}.dll\" \"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/dependencies/\"
-        COMMAND ${CMAKE_COMMAND} -E copy \"${FFMPEG_LIBRARY_DIRS}/swresample-${FFMPEG_VERSION}.dll\" \"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/dependencies/\"
-        COMMENT "Copying dependencies to output directory"
-        VERBATIM
-    )
+    message(STATUS "Dependencies will be automatically handled by vcpkg")
 endif()
 
 # 添加测试目标（可选）
@@ -195,7 +196,7 @@ message(STATUS "Project: ${PROJECT_NAME}")
 message(STATUS "Version: ${PROJECT_VERSION}")
 message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "Qt5 Found: ${Qt5Widgets_FOUND}")
-message(STATUS "TagLib Found: ${TAGLIB_FOUND}")
+message(STATUS "TagLib Found: ${taglib_FOUND}")
 message(STATUS "FFmpeg Found: ${FFMPEG_FOUND}")
 message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "Install Prefix: ${CMAKE_INSTALL_PREFIX}")

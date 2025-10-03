@@ -288,8 +288,14 @@ jobs:
 
       - name: Create release package
         run: |
-          $version = git describe --tags --abbrev=0
-          if (-not $version) {
+          # 尝试获取Git标签，如果失败则使用默认版本
+          try {
+            $version = git describe --tags --abbrev=0 2>$null
+            if ([string]::IsNullOrEmpty($version)) {
+              throw "No tags found"
+            }
+          } catch {
+            Write-Host "Warning: No Git tags found, using default version"
             $version = "dev"
           }
           

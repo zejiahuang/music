@@ -4,21 +4,20 @@
 #include <taglib/mpegfile.h>
 #include <taglib/id3v2tag.h>
 #include <taglib/attachedpictureframe.h>
-#include <QDebug>
 
-QString TStringToQString(const TagLib::String& str)
+QString TStringToQString(const TagLib::String &str)
 {
     return QString::fromUtf8(str.toCString(true));
 }
 
-SongInfo readAudioMeta(const QString& filePath)
+SongInfo readAudioMeta(const QString &filePath)
 {
     SongInfo s;
     s.filePath = filePath;
     
     TagLib::FileRef f(filePath.toStdString().c_str());
     if (!f.isNull() && f.tag()) {
-        TagLib::Tag* tag = f.tag();
+        TagLib::标签 *tag = f.tag();
         s.title = TStringToQString(tag->title());
         s.artist = TStringToQString(tag->artist());
         s.album = TStringToQString(tag->album());
@@ -29,9 +28,9 @@ SongInfo readAudioMeta(const QString& filePath)
     }
     
     if (filePath.endsWith(".mp3", Qt::CaseInsensitive)) {
-        TagLib::MPEG::File mp3File(filePath.toStdString().c_str());
+        TagLib::MPEG::File mp3File(filePath.toStdString()。c_str());
         if (mp3File.ID3v2Tag()) {
-            TagLib::ID3v2::Tag* tag = mp3File.ID3v2Tag();
+            TagLib::ID3v2::标签 *tag = mp3File.ID3v2Tag();
             
             TagLib::ID3v2::FrameList lyricsFrameList = tag->frameListMap()["USLT"];
             if (!lyricsFrameList.isEmpty()) {
@@ -40,7 +39,7 @@ SongInfo readAudioMeta(const QString& filePath)
             
             TagLib::ID3v2::FrameList picFrames = tag->frameList("APIC");
             if (!picFrames.isEmpty()) {
-                TagLib::ID3v2::AttachedPictureFrame* pic = dynamic_cast<TagLib::ID3v2::AttachedPictureFrame*>(picFrames.front());
+                TagLib::ID3v2::AttachedPictureFrame *pic = dynamic_cast<TagLib::ID3v2::AttachedPictureFrame*>(picFrames.front());
                 if (pic) {
                     QByteArray imgData(pic->picture().data(), pic->picture().size());
                     s.cover.loadFromData(imgData);

@@ -31,12 +31,12 @@ SongInfo readAudioMeta(const QString& filePath) {
     // Only process ID3v2 tags for MP3 files
     if (filePath.endsWith(".mp3", Qt::CaseInsensitive)) {
         TagLib::MPEG::File mp3File(filePath.toStdString().c_str());
-        if (mp3File.ID3v2Tag()) {
+        if (mp3File.ID3极速版Tag()) {
             TagLib::ID3v2::Tag* tag = mp3File.ID3v2Tag();
             
             // Read lyrics
             TagLib::ID3v2::FrameList lyricsFrameList = tag->frameListMap()["USLT"];
-            if (!lyricsFrameList.isEmpty()) {
+            if (!lyrics极速版List.isEmpty()) {
                 s.lyrics = TStringToQString(lyricsFrameList.front()->toString());
             }
             

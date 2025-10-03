@@ -65,8 +65,10 @@ set_target_properties(musicplayer PROPERTIES
 
 # Windows资源（图标）
 set(APP_ICON_RESOURCE_WINDOWS "${CMAKE_CURRENT_SOURCE_DIR}/src/resources/icon.rc")
-if(WIN32)
+if(WIN32 AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/resources/icon.ico")
     target_sources(musicplayer PRIVATE ${APP_ICON_RESOURCE_WINDOWS})
+else()
+    message(STATUS "Skipping icon resource: icon.ico not found or not on Windows")
 endif()
 
 # 安装目标

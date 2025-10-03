@@ -5,9 +5,10 @@
 #include <taglib/id3v2tag.h>
 #include <taglib/attachedpictureframe.h>
 
-QString TStringToQString(const TagLib::String& str)
+static QString convertString(TagLib::String s)
 {
-    return QString::fromUtf8(str.toCString(true));
+    const char* cstr = s.toCString(true);
+    return QString::fromUtf8(cstr);
 }
 
 SongInfo readAudioMeta(const QString& filePath)
@@ -18,9 +19,9 @@ SongInfo readAudioMeta(const QString& filePath)
     TagLib::FileRef f(filePath.toStdString().c_str());
     if (!f.isNull() && f.tag()) {
         TagLib::Tag* tag = f.tag();
-        s.title = TStringToQString(tag->title());
-        s.artist = TStringToQString(tag->artist());
-        s.album = TStringToQString(tag->album());
+        s.title = convertString(tag->title());
+        s.artist = convertString(tag->artist());
+        s.album = convertString(tag->album());
     }
     
     if (f.audioProperties()) {
@@ -34,7 +35,7 @@ SongInfo readAudioMeta(const QString& filePath)
             
             TagLib::ID3v2::FrameList lyricsFrameList = tag->frameListMap()["USLT"];
             if (!lyricsFrameList.isEmpty()) {
-                s.lyrics = TStringToQString(lyricsFrameList.front()->toString());
+                s.lyrics = convertString(lyricsFrameList.front()->toString());
             }
             
             TagLib::ID3v2::FrameList picFrames = tag->frameList("APIC");

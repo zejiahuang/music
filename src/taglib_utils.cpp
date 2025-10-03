@@ -16,9 +16,9 @@ SongInfo readAudioMeta(const QString& filePath) {
     s.filePath = filePath;
     
     // Use TagLib to read audio metadata
-    TagLib::FileRef f(filePath.toStdString()。c_str());
+    TagLib::FileRef f(filePath.toStdString().c_str());
     if (!f.isNull() && f.tag()) {
-        TagLib::标签* tag = f.tag();
+        TagLib::Tag* tag = f.tag();
         s.title = TStringToQString(tag->title());
         s.artist = TStringToQString(tag->artist());
         s.album = TStringToQString(tag->album());
@@ -30,13 +30,13 @@ SongInfo readAudioMeta(const QString& filePath) {
     
     // Only process ID3v2 tags for MP3 files
     if (filePath.endsWith(".mp3", Qt::CaseInsensitive)) {
-        TagLib::MPEG::File mp3File(filePath.toStdString()。c_str());
+        TagLib::MPEG::File mp3File(filePath.toStdString().c_str());
         if (mp3File.ID3v2Tag()) {
-            TagLib::ID3v2::标签* tag = mp3File.ID3v2Tag();
+            TagLib::ID3v2::Tag* tag = mp3File.ID3v2Tag();
             
             // Read lyrics
             TagLib::ID3v2::FrameList lyricsFrameList = tag->frameListMap()["USLT"];
-            if (!lyrics极速版FrameList.isEmpty()) {
+            if (!lyricsFrameList.isEmpty()) {
                 s.lyrics = TStringToQString(lyricsFrameList.front()->toString());
             }
             

@@ -51,9 +51,6 @@ jobs:
       - name: Install dependencies with vcpkg
         shell: pwsh
         run: |
-          # 防止vcpkg环境变量冲突
-          $env:VCPKG_ROOT = $null
-          
           # 配置vcpkg认证（使用系统提供的GITHUB_TOKEN）
           & "${{ env.VCPKG_DIR }}\vcpkg.exe" integrate install
           echo ${{ secrets.GITHUB_TOKEN }} | & "${{ env.VCPKG_DIR }}\vcpkg.exe" nuget add source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" -name "GitHub" -username "${{ github.repository_owner }}" -password -
@@ -63,7 +60,15 @@ jobs:
           & "${{ env.VCPKG_DIR }}\vcpkg.exe" install taglib:x64-windows --triplet x64-windows
           
           Write-Host "Installing FFmpeg..."
-          & "${{ env.VCPKG_DIR }}\vcpkg.exe" install ffmpeg[core,avcodec,avformat,avutil,swresample]:x64-windows --triplet x64-windows
+          # 先尝试安装基础FFmpeg
+          & "${{ env.VCPKG_DIR }}\vcpkg.exe" install ffmpeg:x64-windows --triplet x64-windows
+          
+          # 验证FFmpeg安装，如果失败则尝试其他方式
+          $vcpkgInstalledPath = "${{ env.VCPKG_DIR }}\installed\x64-windows"
+          if (-not (Test-Path "$vcpkgInstalledPath\lib\avformat.lib")) {
+            Write-Host "Basic FFmpeg installation failed, trying with explicit features..."
+            & "${{ env.VCPKG_DIR }}\vcpkg.exe" install ffmpeg[avcodec,avformat,avutil,swresample]:x64-windows --triplet x64-windows
+          }
           
           Write-Host "Installing PkgConfig..."
           & "${{ env.VCPKG_DIR }}\vcpkg.exe" install pkgconf:x64-windows --triplet x64-windows
@@ -83,6 +88,9 @@ jobs:
           } else {
             Write-Host "✗ FFmpeg installation failed"
           }
+          
+          # 设置VCPKG_ROOT环境变量供CMake使用
+          echo "VCPKG_ROOT=${{ env.VCPKG_DIR }}" >> $env:GITHUB_ENV
 
       - name: Setup environment variables
         run: |
@@ -100,7 +108,29 @@ jobs:
             exit 1
           }
           
+          # 检查VCPKG安装目录
+          $vcpkgInstalled = "${{ env.VCPKG_DIR }}\installed\x64-windows"
+          Write-Host "Checking vcpkg installation at: $vcpkgInstalled"
+          
+          if (Test-Path "$vcpkgInstalled\lib") {
+            Write-Host "Found libraries:"
+            Get-ChildItem "$vcpkgInstalled\lib\*.lib" | ForEach-Object {
+              Write-Host "  $($_.Name)"
+            }
+          } else {
+            Write-Warning "No lib directory found at $vcpkgInstalled\lib"
+          }
+          
+          if (Test-Path "$vcpkgInstalled\include") {
+            Write-Host "Include directory exists: $vcpkgInstalled\include"
+          } else {
+            Write-Warning "No include directory found at $vcpkgInstalled\include"
+          }
+          
           Write-Host "Configuring CMake with toolchain: $toolchainFile"
+          
+          # 设置VCPKG_ROOT环境变量
+          $env:VCPKG_ROOT = "${{ env.VCPKG_DIR }}"
           
           # 配置CMake，确保使用x64架构
           cmake -B build -S . `
@@ -109,7 +139,8 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE="$toolchainFile" `
             -DCMAKE_PREFIX_PATH="$env:QT5_DIR;${{ env.VCPKG_DIR }}\installed\x64-windows" `
             -DCMAKE_BUILD_TYPE=Release `
-            -DVCPKG_TARGET_TRIPLET=x64-windows
+            -DVCPKG_TARGET_TRIPLET=x64-windows `
+            -DVCPKG_VERBOSE=ON
           
           if ($LASTEXITCODE -ne 0) {
             Write-Error "CMake configuration failed"

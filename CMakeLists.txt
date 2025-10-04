@@ -40,29 +40,126 @@ set(FFMPEG_LIBRARIES)
 set(FFMPEG_INCLUDE_DIRS)
 set(FFMPEG_LIBRARY_DIRS)
 
+# 检查是否使用vcpkg工具链
+message(STATUS "CMAKE_TOOLCHAIN_FILE: ${CMAKE_TOOLCHAIN_FILE}")
+if(CMAKE_TOOLCHAIN_FILE AND CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg")
+    message(STATUS "Detected vcpkg toolchain - using vcpkg-specific search")
+    set(USING_VCPKG TRUE)
+else()
+    set(USING_VCPKG FALSE)
+endif()
+
+# 调试信息：输出当前的库搜索路径
+message(STATUS "CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
+message(STATUS "CMAKE_LIBRARY_PATH: ${CMAKE_LIBRARY_PATH}")
+if(DEFINED ENV{VCPKG_ROOT})
+    message(STATUS "VCPKG_ROOT: $ENV{VCPKG_ROOT}")
+    set(VCPKG_INSTALLED_DIR "$ENV{VCPKG_ROOT}/installed/x64-windows")
+    message(STATUS "VCPKG_INSTALLED_DIR: ${VCPKG_INSTALLED_DIR}")
+endif()
+
 # 优先尝试vcpkg方式（单独查找各个组件）
-find_path(AVFORMAT_INCLUDE_DIR libavformat/avformat.h)
-find_library(AVFORMAT_LIBRARY avformat)
-find_library(AVCODEC_LIBRARY avcodec)
-find_library(AVUTIL_LIBRARY avutil)
-find_library(SWRESAMPLE_LIBRARY swresample)
+# 为vcpkg环境添加特定的搜索路径
+if(USING_VCPKG AND DEFINED ENV{VCPKG_ROOT})
+    set(VCPKG_INCLUDE_DIR "$ENV{VCPKG_ROOT}/installed/x64-windows/include")
+    set(VCPKG_LIB_DIR "$ENV{VCPKG_ROOT}/installed/x64-windows/lib")
+    
+    message(STATUS "Searching for FFmpeg in vcpkg directories:")
+    message(STATUS "  Include: ${VCPKG_INCLUDE_DIR}")
+    message(STATUS "  Lib: ${VCPKG_LIB_DIR}")
+    
+    # 添加vcpkg路径到搜索路径
+    list(APPEND CMAKE_PREFIX_PATH "$ENV{VCPKG_ROOT}/installed/x64-windows")
+    
+    # 使用更具体的路径查找各个FFmpeg组件
+    find_path(AVFORMAT_INCLUDE_DIR 
+        NAMES libavformat/avformat.h
+        PATHS "${VCPKG_INCLUDE_DIR}"
+        NO_DEFAULT_PATH
+    )
+    
+    find_library(AVFORMAT_LIBRARY 
+        NAMES avformat
+        PATHS "${VCPKG_LIB_DIR}"
+        NO_DEFAULT_PATH
+    )
+    
+    find_library(AVCODEC_LIBRARY 
+        NAMES avcodec
+        PATHS "${VCPKG_LIB_DIR}"
+        NO_DEFAULT_PATH
+    )
+    
+    find_library(AVUTIL_LIBRARY 
+        NAMES avutil
+        PATHS "${VCPKG_LIB_DIR}"
+        NO_DEFAULT_PATH
+    )
+    
+    find_library(SWRESAMPLE_LIBRARY 
+        NAMES swresample
+        PATHS "${VCPKG_LIB_DIR}"
+        NO_DEFAULT_PATH
+    )
+else()
+    # 非vcpkg环境或没有VCPKG_ROOT，使用默认查找
+    message(STATUS "Using standard library search (non-vcpkg or VCPKG_ROOT not set)")
+    
+    find_path(AVFORMAT_INCLUDE_DIR libavformat/avformat.h)
+    find_library(AVFORMAT_LIBRARY avformat)
+    find_library(AVCODEC_LIBRARY avcodec)
+    find_library(AVUTIL_LIBRARY avutil)
+    find_library(SWRESAMPLE_LIBRARY swresample)
+endif()
+
+# 调试输出查找结果
+message(STATUS "FFmpeg component search results:")
+message(STATUS "  AVFORMAT_INCLUDE_DIR: ${AVFORMAT_INCLUDE_DIR}")
+message(STATUS "  AVFORMAT_LIBRARY: ${AVFORMAT_LIBRARY}")
+message(STATUS "  AVCODEC_LIBRARY: ${AVCODEC_LIBRARY}")
+message(STATUS "  AVUTIL_LIBRARY: ${AVUTIL_LIBRARY}")
+message(STATUS "  SWRESAMPLE_LIBRARY: ${SWRESAMPLE_LIBRARY}")
 
 if(AVFORMAT_INCLUDE_DIR AND AVFORMAT_LIBRARY AND AVCODEC_LIBRARY AND AVUTIL_LIBRARY AND SWRESAMPLE_LIBRARY)
     set(FFMPEG_FOUND TRUE)
     set(FFMPEG_INCLUDE_DIRS ${AVFORMAT_INCLUDE_DIR})
     set(FFMPEG_LIBRARIES ${AVFORMAT_LIBRARY} ${AVCODEC_LIBRARY} ${AVUTIL_LIBRARY} ${SWRESAMPLE_LIBRARY})
-    message(STATUS "Found FFmpeg via vcpkg: ${FFMPEG_LIBRARIES}")
+    message(STATUS "✓ Found FFmpeg via vcpkg: ${FFMPEG_LIBRARIES}")
 elseif(PkgConfig_FOUND)
     # 回退到pkg-config方式（用于非vcpkg环境）
+    message(STATUS "Trying pkg-config as fallback...")
     pkg_check_modules(FFMPEG QUIET libavformat libavcodec libavutil libswresample)
     if(FFMPEG_FOUND)
-        message(STATUS "Found FFmpeg via pkg-config: ${FFMPEG_LIBRARIES}")
+        message(STATUS "✓ Found FFmpeg via pkg-config: ${FFMPEG_LIBRARIES}")
     endif()
+else()
+    message(STATUS "PkgConfig not found, skipping pkg-config fallback")
 endif()
 
-# 如果所有方法都失败，给出明确错误信息
+# 如果所有方法都失败，给出明确错误信息和调试建议
 if(NOT FFMPEG_FOUND)
-    message(FATAL_ERROR "FFmpeg not found. Please ensure FFmpeg is installed via vcpkg or system package manager.")
+    message(STATUS "")
+    message(STATUS "❌ FFmpeg not found. Debugging information:")
+    message(STATUS "")
+    if(DEFINED ENV{VCPKG_ROOT})
+        message(STATUS "VCPKG environment detected:")
+        message(STATUS "  VCPKG_ROOT: $ENV{VCPKG_ROOT}")
+        file(GLOB vcpkg_libs "$ENV{VCPKG_ROOT}/installed/x64-windows/lib/av*.lib")
+        if(vcpkg_libs)
+            message(STATUS "  Found FFmpeg-related libraries:")
+            foreach(lib ${vcpkg_libs})
+                message(STATUS "    ${lib}")
+            endforeach()
+        else()
+            message(STATUS "  ❌ No FFmpeg libraries found in $ENV{VCPKG_ROOT}/installed/x64-windows/lib/")
+            message(STATUS "  Please run: vcpkg install ffmpeg[core,avcodec,avformat,avutil,swresample]:x64-windows")
+        endif()
+    else()
+        message(STATUS "❌ VCPKG_ROOT environment variable not set")
+        message(STATUS "Please ensure vcpkg is properly configured")
+    endif()
+    message(STATUS "")
+    message(FATAL_ERROR "FFmpeg not found. Please ensure FFmpeg is installed via vcpkg.")
 endif()
 
 # 添加可执行文件 - 只包含存在的源文件

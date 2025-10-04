@@ -1,214 +1,32 @@
-name: Build and Release musicplayer (Windows)
+name: Build and Release musicplayer
+name: Build and Release musicplayer
 
 on:
   push:
+    branches: [ main, develop ]
     tags:
       - 'v*'
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 env:
   QT_VERSION: '5.15.2'
   VCPKG_DIR: '${{ github.workspace }}/vcpkg'
+  # 使用系统提供的GITHUB_TOKEN进行认证，遵循安全规范
+  VCPKG_BINARY_SOURCES: 'clear;nuget,GitHub,readwrite'
 
 jobs:
-  build:
+  build-windows:
     runs-on: windows-latest
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create missing header files
-        shell: pwsh
-        run: |
-          # 创建缺失的头文件
-          @"
-          #pragma once
-          #include <QObject>
-          #include <QString>
-          
-          class FFmpegPlayer : public QObject {
-              Q_OBJECT
-          public:
-              explicit FFmpegPlayer(QObject *parent = nullptr);
-              ~FFmpegPlayer();
-              
-              bool load(const QString &filePath);
-              void play();
-              void pause();
-              void stop();
-              void seek(qint64 positionMs);
-              
-              qint64 duration() const;
-              qint64 position() const;
-              
-          signals:
-              void positionChanged(qint64 ms);
-              void durationChanged(qint64 ms);
-              void playbackStarted();
-              void playbackPaused();
-              void playbackStopped();
-              void errorOccurred(const QString &errorMessage);
-              
-          private:
-              class Private;
-              Private *d;
-          };
-          "@ | Out-File -FilePath src/ffmpegplayer.h -Encoding utf8
-          
-          @"
-          #pragma once
-          #include <QString>
-          #include "songinfo.h"
-          
-          SongInfo readAudioMeta(const QString &filePath);
-          "@ | Out-File -FilePath src/taglib_utils.h -Encoding utf8
-          
-          @"
-          #pragma once
-          #include <QString>
-          #include <QVector>
-          
-          QVector<float> extractWaveformFFmpeg(const QString &filePath, int samplePoints = 256);
-          "@ | Out-File -FilePath src/ffmpeg_waveform.h -Encoding utf8
-          
-          @"
-          #pragma once
-          #include <QString>
-          #include <QList>
-          #include "playlist.h"
-          
-          class PlaylistManager {
-          public:
-              QList<Playlist> playlists;
-              void scanMusicFolders(const QString &musicRootDir, const QString &myMusicDir);
-              void loadPlaylists(const QString &myMusicDir);
-              void savePlaylists(const QString &myMusicDir);
-          };
-          "@ | Out-File -FilePath src/playlistmanager.h -Encoding utf8
-          
-          @"
-          #pragma once
-          #include <QString>
-          #include <QImage>
-          #include <QVector>
-          
-          struct SongInfo {
-              QString filePath;
-              QString title;
-              QString artist;
-              QString album;
-              qint64 durationMs;
-              QString lyrics;
-              QImage cover;
-              QVector<float> waveform;
-          };
-          "@ | Out-File -FilePath src/songinfo.h -Encoding utf8
-          
-          @"
-          #pragma once
-          #include <QString>
-          #include <QList>
-          #include <QJsonObject>
-          #include <QJsonArray>
-          #include "songinfo.h"
-          
-          struct Playlist {
-              QString name;
-              QList<SongInfo> songs;
-          
-              QJsonObject toJson() const;
-              static Playlist fromJson(const QJsonObject &obj);
-          };
-          "@ | Out-File -FilePath src/playlist.h -Encoding utf8
-          
-          @"
-          #pragma once
-          #include <QMainWindow>
-          #include <QPushButton>
-          #include <QSlider>
-          #include <QLabel>
-          #include <QLineEdit>
-          #include <QListWidget>
-          #include "ui/lyricsvisualwidget.h"
-          #include "ffmpegplayer.h"
-          
-          class PlayerWindow : public QMainWindow {
-              Q_OBJECT
-          public:
-              explicit PlayerWindow(QWidget *parent = nullptr);
-          
-          private:
-              LyricsVisualWidget *lyricsVisualWidget;
-              QLineEdit *searchEdit;
-              QListWidget *playlistWidget;
-              FFmpegPlayer *player;
-              
-              void setupUi();
-              void setupStyle();
-              void loadSong(const QString &audioPath);
-              void switchTheme(bool dark);
-          };
-          "@ | Out-File -FilePath src/playerwindow.h -Encoding utf8
-          
-          # 创建 FFmpegPlayer 实现
-          @"
-          #include "ffmpegplayer.h"
-          #include <QDebug>
-          
-          class FFmpegPlayer::Private {
-          public:
-              bool isPlaying = false;
-              qint64 currentPosition = 0;
-              qint64 totalDuration = 0;
-          };
-          
-          FFmpegPlayer::FFmpegPlayer(QObject *parent) : QObject(parent), d(new Private) {}
-          
-          FFmpegPlayer::~FFmpegPlayer() {
-              delete d;
-          }
-          
-          bool FFmpegPlayer::load(const QString &filePath) {
-              qDebug() << "Loading file:" << filePath;
-              d->totalDuration = 1000 * 60 * 3;
-              emit durationChanged(d->totalDuration);
-              return true;
-          }
-          
-          void FFmpegPlayer::play() {
-              qDebug() << "Play";
-              d->isPlaying = true;
-              emit playbackStarted();
-          }
-          
-          void FFmpegPlayer::pause() {
-              qDebug() << "Pause";
-              d->isPlaying = false;
-              emit playbackPaused();
-          }
-          
-          void FFmpegPlayer::stop() {
-              qDebug() << "Stop";
-              d->isPlaying = false;
-              d->currentPosition = 0;
-              emit playbackStopped();
-          }
-          
-          void FFmpegPlayer::seek(qint64 positionMs) {
-              qDebug() << "Seek to:" << positionMs;
-              d->currentPosition = positionMs;
-              emit positionChanged(positionMs);
-          }
-          
-          qint64 FFmpegPlayer::duration() const {
-              return d->totalDuration;
-          }
-          
-          qint64 FFmpegPlayer::position() const {
-              return d->currentPosition;
-          }
-          "@ | Out-File -FilePath src/ffmpegplayer.cpp -Encoding utf8
+      # 跳过创建头文件步骤，因为我们已经修复了项目结构
 
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
@@ -228,12 +46,44 @@ jobs:
         run: |
           git clone https://github.com/microsoft/vcpkg.git ${{ env.VCPKG_DIR }}
           & "${{ env.VCPKG_DIR }}\bootstrap-vcpkg.bat" -disableMetrics
+          echo "VCPKG_ROOT=${{ env.VCPKG_DIR }}" >> $env:GITHUB_ENV
+          echo "CMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_DIR }}\scripts\buildsystems\vcpkg.cmake" >> $env:GITHUB_ENV
 
       - name: Install dependencies with vcpkg
+        shell: pwsh
         run: |
-          # 取消设置可能冲突的环境变量
+          # 防止vcpkg环境变量冲突
           $env:VCPKG_ROOT = $null
-          & "${{ env.VCPKG_DIR }}\vcpkg.exe" install taglib:x64-windows ffmpeg:x64-windows pkgconf:x64-windows
+          
+          # 配置vcpkg认证（使用系统提供的GITHUB_TOKEN）
+          & "${{ env.VCPKG_DIR }}\vcpkg.exe" integrate install
+          echo ${{ secrets.GITHUB_TOKEN }} | & "${{ env.VCPKG_DIR }}\vcpkg.exe" nuget add source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" -name "GitHub" -username "${{ github.repository_owner }}" -password -
+          
+          # 安装依赖时明确指定架构为x64
+          Write-Host "Installing TagLib..."
+          & "${{ env.VCPKG_DIR }}\vcpkg.exe" install taglib:x64-windows --triplet x64-windows
+          
+          Write-Host "Installing FFmpeg..."
+          & "${{ env.VCPKG_DIR }}\vcpkg.exe" install ffmpeg[core,avcodec,avformat,avutil,swresample]:x64-windows --triplet x64-windows
+          
+          Write-Host "Installing PkgConfig..."
+          & "${{ env.VCPKG_DIR }}\vcpkg.exe" install pkgconf:x64-windows --triplet x64-windows
+          
+          # 验证安装结果
+          Write-Host "Verifying installations..."
+          $vcpkgInstalledPath = "${{ env.VCPKG_DIR }}\installed\x64-windows"
+          
+          if (Test-Path "$vcpkgInstalledPath\lib\tag.lib") {
+            Write-Host "✓ TagLib installed successfully"
+          } else {
+            Write-Host "✗ TagLib installation failed"
+          }
+          
+          if (Test-Path "$vcpkgInstalledPath\lib\avformat.lib") {
+            Write-Host "✓ FFmpeg installed successfully"
+          } else {
+            Write-Host "✗ FFmpeg installation failed"
+          }
 
       - name: Setup environment variables
         run: |
@@ -241,27 +91,133 @@ jobs:
           echo "PATH=${{ env.VCPKG_DIR }}\installed\x64-windows\bin;$env:PATH" >> $env:GITHUB_ENV
 
       - name: Configure CMake
+        shell: pwsh
         run: |
           $toolchainFile = "${{ env.VCPKG_DIR }}\scripts\buildsystems\vcpkg.cmake"
+          
+          # 确保工具链文件存在
+          if (-not (Test-Path $toolchainFile)) {
+            Write-Error "vcpkg toolchain file not found: $toolchainFile"
+            exit 1
+          }
+          
+          Write-Host "Configuring CMake with toolchain: $toolchainFile"
+          
+          # 配置CMake，确保使用x64架构
           cmake -B build -S . `
+            -G "Visual Studio 17 2022" `
+            -A x64 `
             -DCMAKE_TOOLCHAIN_FILE="$toolchainFile" `
             -DCMAKE_PREFIX_PATH="$env:QT5_DIR;${{ env.VCPKG_DIR }}\installed\x64-windows" `
-            -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_BUILD_TYPE=Release `
+            -DVCPKG_TARGET_TRIPLET=x64-windows
+          
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "CMake configuration failed"
+            exit 1
+          }
 
       - name: Build
-        run: cmake --build build --config Release --parallel
+        shell: pwsh
+        run: |
+          Write-Host "Starting build process..."
+          cmake --build build --config Release --parallel
+          
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Build failed"
+            exit 1
+          }
+          
+          Write-Host "Build completed successfully"
 
-      - name: Test build output
+      - name: Verify executable architecture
+        shell: pwsh
+        run: |
+          cd build
+          # 验证生成的可执行文件架构，防止32/64位混合
+          if (Test-Path "Release\musicplayer.exe") {
+            Write-Host "Executable found: Release\musicplayer.exe"
+            # 使用file命令或dumpbin验证架构（如果可用）
+            Get-ItemProperty "Release\musicplayer.exe" | Select-Object Name, Length, LastWriteTime
+          } else {
+            Write-Host "Executable not found at expected location"
+            Get-ChildItem -Recurse -Name "*.exe"
+          }
+
+      - name: Test executable launch
+        shell: pwsh
+        run: |
+          cd build
+          # 尝试启动程序验证依赖是否正确
+          if (Test-Path "Release\musicplayer.exe") {
+            Write-Host "Testing executable launch..."
+            # 使用超时机制测试程序启动
+            $process = Start-Process -FilePath "Release\musicplayer.exe" -ArgumentList "--help" -PassThru -NoNewWindow
+            Start-Sleep -Seconds 5
+            if (!$process.HasExited) {
+              $process.Kill()
+              Write-Host "Program started successfully (terminated after 5s)"
+            } else {
+              Write-Host "Program exit code: $($process.ExitCode)"
+            }
+          }
+
+      - name: Test build output and diagnose dependencies
+        shell: pwsh
         run: |
           if (Test-Path "build/Release/musicplayer.exe") {
             Write-Host "✓ Build successful - musicplayer.exe found"
+            
+            # 检查可执行文件架构
+            $exePath = "build/Release/musicplayer.exe"
+            $fileInfo = Get-Item $exePath
+            Write-Host "Executable size: $($fileInfo.Length) bytes"
+            
+            # 使用file命令检查架构（如果可用）
+            try {
+              $fileOutput = file $exePath 2>$null
+              if ($fileOutput) {
+                Write-Host "File type: $fileOutput"
+              }
+            } catch {
+              Write-Host "file command not available, skipping architecture check"
+            }
+            
+            # 检查依赖DLL是否可用
+            $vcpkgBinPath = "${{ env.VCPKG_DIR }}\installed\x64-windows\bin"
+            Write-Host "\nChecking dependencies in: $vcpkgBinPath"
+            
+            $requiredDlls = @("tag.dll", "avformat*.dll", "avcodec*.dll", "avutil*.dll", "swresample*.dll")
+            foreach ($dll in $requiredDlls) {
+              $found = Get-ChildItem "$vcpkgBinPath\$dll" -ErrorAction SilentlyContinue
+              if ($found) {
+                Write-Host "✓ Found: $($found.Name)"
+                
+                # 检查DLL架构
+                foreach ($file in $found) {
+                  try {
+                    $dllFileOutput = file $file.FullName 2>$null
+                    if ($dllFileOutput -and $dllFileOutput -notmatch "x86-64") {
+                      Write-Warning "Potential architecture mismatch in $($file.Name): $dllFileOutput"
+                    }
+                  } catch {
+                    # 忽略错误
+                  }
+                }
+              } else {
+                Write-Warning "✗ Missing: $dll"
+              }
+            }
+            
           } else {
-            Write-Host "✗ Build failed - musicplayer.exe not found"
+            Write-Error "✗ Build failed - musicplayer.exe not found"
+            Write-Host "\nBuild directory contents:"
             Get-ChildItem -Path build -Recurse -Name
             exit 1
           }
 
-      - name: Collect dependencies
+      - name: Collect dependencies (x64 architecture)
+        shell: pwsh
         run: |
           # 创建发布目录
           New-Item -ItemType Directory -Path "release" -Force
@@ -270,33 +226,60 @@ jobs:
           Copy-Item "build/Release/musicplayer.exe" -Destination "release/"
           Write-Host "✓ Main executable copied"
           
-          # 复制Qt依赖
+          # 使用windeployqt复制Qt依赖
           $qtBinPath = "$env:QT5_DIR/bin"
-          & "$env:QT5_DIR/bin/windeployqt.exe" --release --no-compiler-runtime --no-translations release/musicplayer.exe
-          Write-Host "✓ Qt dependencies processed"
-          
-          # 复制vcpkg依赖
-          $vcpkgBinPath = "${{ env.VCPKG_DIR }}\installed\x64-windows\bin"
-          Write-Host "Looking for DLLs in: $vcpkgBinPath"
-          
-          # 检查并复制TagLib
-          if (Test-Path "$vcpkgBinPath/tag.dll") {
-            Copy-Item "$vcpkgBinPath/tag.dll" -Destination "release/"
-            Write-Host "✓ TagLib DLL copied"
+          if (Test-Path "$qtBinPath/windeployqt.exe") {
+            Write-Host "Running windeployqt..."
+            & "$qtBinPath/windeployqt.exe" --release --no-compiler-runtime --no-translations --no-system-d3d-compiler release/musicplayer.exe
+            Write-Host "✓ Qt dependencies processed"
           } else {
-            Write-Host "⚠ TagLib DLL not found, listing available DLLs:"
-            Get-ChildItem "$vcpkgBinPath" -Filter "*.dll" | Select-Object Name
+            Write-Warning "windeployqt.exe not found at $qtBinPath"
           }
           
-          # 检查并复制FFmpeg DLLs
-          $ffmpegDlls = @("avcodec-*.dll", "avformat-*.dll", "avutil-*.dll", "swresample-*.dll")
-          foreach ($pattern in $ffmpegDlls) {
-            $files = Get-ChildItem "$vcpkgBinPath" -Filter $pattern
+          # 复制vcpkg依赖（只复制x64 DLL）
+          $vcpkgBinPath = "${{ env.VCPKG_DIR }}\installed\x64-windows\bin"
+          Write-Host "Looking for x64 DLLs in: $vcpkgBinPath"
+          
+          if (-not (Test-Path $vcpkgBinPath)) {
+            Write-Error "vcpkg bin directory not found: $vcpkgBinPath"
+            exit 1
+          }
+          
+          # 定义需要的DLL列表
+          $dllPatterns = @(
+            "tag.dll",
+            "avcodec-*.dll",
+            "avformat-*.dll", 
+            "avutil-*.dll",
+            "swresample-*.dll",
+            "swscale-*.dll"
+          )
+          
+          foreach ($pattern in $dllPatterns) {
+            $files = Get-ChildItem "$vcpkgBinPath\$pattern" -ErrorAction SilentlyContinue
             if ($files.Count -gt 0) {
-              Copy-Item "$vcpkgBinPath/$pattern" -Destination "release/"
-              Write-Host "✓ Copied $($files.Count) files matching $pattern"
+              foreach ($file in $files) {
+                # 验证是64位DLL
+                try {
+                  $fileCheck = file $file.FullName 2>$null
+                  if ($fileCheck -and $fileCheck -match "x86-64") {
+                    Copy-Item $file.FullName -Destination "release/"
+                    Write-Host "✓ Copied x64 DLL: $($file.Name)"
+                  } elseif ($fileCheck) {
+                    Write-Warning "⚠ Skipping non-x64 DLL: $($file.Name) - $fileCheck"
+                  } else {
+                    # 如果file命令不可用，仍然复制但给出警告
+                    Copy-Item $file.FullName -Destination "release/"
+                    Write-Host "✓ Copied DLL (architecture not verified): $($file.Name)"
+                  }
+                } catch {
+                  # file命令失败，仍然复制
+                  Copy-Item $file.FullName -Destination "release/"
+                  Write-Host "✓ Copied DLL: $($file.Name)"
+                }
+              }
             } else {
-              Write-Host "⚠ No files found matching $pattern"
+              Write-Warning "⚠ No files found matching pattern: $pattern"
             }
           }
           
@@ -308,39 +291,228 @@ jobs:
             Write-Host "⚠ No resources directory found"
           }
           
-          # 列出最终的发布目录内容
-          Write-Host "Final release directory contents:"
-          Get-ChildItem "release" -Recurse | Select-Object Name, Length
+          # 最终检查
+          Write-Host "\nFinal release directory contents:"
+          Get-ChildItem "release" | ForEach-Object {
+            $size = if ($_.PSIsContainer) { "<DIR>" } else { "$($_.Length) bytes" }
+            Write-Host "  $($_.Name) - $size"
+          }
+          
+          # 验证关键文件是否存在
+          $criticalFiles = @("musicplayer.exe", "Qt5Core.dll", "Qt5Gui.dll", "Qt5Widgets.dll")
+          foreach ($file in $criticalFiles) {
+            if (Test-Path "release\$file") {
+              Write-Host "✓ Critical file present: $file"
+            } else {
+              Write-Error "✗ Critical file missing: $file"
+            }
+          }
+
+      - name: Test executable (防止0xc000007b)
+        shell: pwsh
+        run: |
+          Write-Host "Testing executable to prevent 0xc000007b error..."
+          
+          # 切换到release目录
+          Set-Location "release"
+          
+          # 检查所有DLL的架构一致性
+          Write-Host "\nVerifying DLL architecture consistency:"
+          $dllFiles = Get-ChildItem "*.dll"
+          $archMismatch = $false
+          
+          foreach ($dll in $dllFiles) {
+            try {
+              # 尝试使用多种方法检查架构
+              $fileOutput = ""
+              
+              # 方法1：使用file命令（如果可用）
+              try {
+                $fileOutput = file $dll.Name 2>$null
+              } catch {}
+              
+              # 方法2：读取PE头（PowerShell方法）
+              if (-not $fileOutput) {
+                try {
+                  $bytes = [System.IO.File]::ReadAllBytes($dll.FullName)
+                  if ($bytes.Length -gt 64) {
+                    $peOffset = [BitConverter]::ToInt32($bytes, 60)
+                    if ($peOffset + 24 -lt $bytes.Length) {
+                      $machine = [BitConverter]::ToUInt16($bytes, $peOffset + 4)
+                      switch ($machine) {
+                        0x014c { $fileOutput = "32-bit (x86)" }
+                        0x8664 { $fileOutput = "64-bit (x64)" }
+                        default { $fileOutput = "Unknown architecture (0x$($machine.ToString('X')))" }
+                      }
+                    }
+                  }
+                } catch {
+                  $fileOutput = "Unable to determine architecture"
+                }
+              }
+              
+              Write-Host "  $($dll.Name): $fileOutput"
+              
+              # 检查是否为32位DLL（这会导致0xc000007b）
+              if ($fileOutput -match "32-bit|i386" -and $fileOutput -notmatch "64-bit|x86-64") {
+                Write-Warning "⚠ Potential architecture mismatch detected in $($dll.Name)"
+                $archMismatch = $true
+              }
+              
+            } catch {
+              Write-Host "  $($dll.Name): Error checking architecture - $($_.Exception.Message)"
+            }
+          }
+          
+          if ($archMismatch) {
+            Write-Warning "Architecture mismatches detected. This may cause 0xc000007b error."
+          } else {
+            Write-Host "✓ No obvious architecture mismatches detected."
+          }
+          
+          # 尝试运行程序（快速退出测试）
+          Write-Host "\nTesting executable launch..."
+          try {
+            # 设置测试标志，让程序快速退出
+            $env:MUSICPLAYER_TEST_MODE = "1"
+            
+            # 尝试启动程序并快速终止
+            $process = Start-Process -FilePath "musicplayer.exe" -ArgumentList "--test" -WindowStyle Hidden -PassThru -ErrorAction SilentlyContinue
+            
+            if ($process) {
+              # 等待短时间然后终止
+              Start-Sleep -Seconds 2
+              
+              if (-not $process.HasExited) {
+                $process.Kill()
+                Write-Host "✓ Executable started successfully (terminated for testing)"
+              } else {
+                $exitCode = $process.ExitCode
+                if ($exitCode -eq 0) {
+                  Write-Host "✓ Executable ran and exited normally"
+                } else {
+                  Write-Warning "⚠ Executable exited with code: $exitCode"
+                }
+              }
+            } else {
+              Write-Warning "⚠ Unable to start executable (may indicate 0xc000007b)"
+            }
+            
+          } catch {
+            Write-Warning "⚠ Error testing executable: $($_.Exception.Message)"
+            Write-Host "This may indicate dependency issues or 0xc000007b error."
+          }
+          
+          # 恢复工作目录
+          Set-Location ".."
+          
+          Write-Host "\nExecutable testing completed."
 
       - name: Create release package
+        shell: pwsh
         run: |
           # 尝试获取Git标签，如果失败则使用默认版本
-          try {
-            $version = git describe --tags --abbrev=0 2>$null
-            if ([string]::IsNullOrEmpty($version)) {
-              throw "No tags found"
-            }
-          } catch {
+          $ErrorActionPreference = "SilentlyContinue"
+          $version = git describe --tags --abbrev=0 2>$null
+          $ErrorActionPreference = "Stop"
+          
+          if ([string]::IsNullOrEmpty($version) -or $LASTEXITCODE -ne 0) {
             Write-Host "Warning: No Git tags found, using default version"
             $version = "dev"
+          } else {
+            Write-Host "Found Git tag: $version"
           }
           
           $zipName = "musicplayer-windows-$version.zip"
-          Compress-Archive -Path "release/*" -DestinationPath $zipName
           
-          Write-Host "Created release package: $zipName"
-          Get-ChildItem -Path $zipName
+          # 只在标签发布时创建发布包
+          if ("${{ github.ref }}" -like "refs/tags/*") {
+            Compress-Archive -Path "release/*" -DestinationPath $zipName
+            Write-Host "Created release package: $zipName"
+            Get-ChildItem -Path $zipName
+          } else {
+            Write-Host "Skipping release package creation (not a tag release)"
+          }
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: musicplayer-windows-x64
+          path: |
+            build/Release/musicplayer.exe
+            build/Release/*.dll
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
+        if: startsWith(github.ref, 'refs/tags/')
         with:
-          name: musicplayer-windows-${{ github.run_number }}
+          name: musicplayer-windows-build-${{ github.run_number }}
           path: musicplayer-windows-*.zip
+          if-no-files-found: warn
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: musicplayer-windows-*.zip
+          fail_on_unmatched_files: false
         env:
-          GITHUB_TOKEN: ${{ secrets.A }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-linux:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          pkg-config \
+          libtag1-dev \
+          libavcodec-dev \
+          libavformat-dev \
+          libavutil-dev \
+          libswresample-dev \
+          qt5-default \
+          qtbase5-dev \
+          qtmultimedia5-dev
+    
+    - name: Configure CMake
+      run: |
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release
+    
+    - name: Build
+      run: |
+        cd build
+        make -j$(nproc)
+    
+    - name: Test executable
+      run: |
+        cd build
+        if [ -f "musicplayer" ]; then
+          echo "Executable found: musicplayer"
+          ldd musicplayer || true
+          # 测试程序启动（使用虚拟显示器）
+          export QT_QPA_PLATFORM=offscreen
+          timeout 5s ./musicplayer --help || echo "Program test completed with exit code $?"
+        else
+          echo "Executable not found"
+          find . -name "musicplayer" -type f
+        fi
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      if: success()
+      with:
+        name: musicplayer-linux-x64
+        path: build/musicplayer

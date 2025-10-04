@@ -1,5 +1,4 @@
 #include "../include/materialui_components.h"
-#include "../include/materialui_components.h"
 #include <QPainter>
 #include <QMouseEvent>
 #include <QGraphicsDropShadowEffect>

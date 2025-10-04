@@ -1,5 +1,4 @@
 name: Build and Release musicplayer
-name: Build and Release musicplayer
 
 on:
   push:

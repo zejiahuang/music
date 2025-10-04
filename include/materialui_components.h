@@ -1,4 +1,5 @@
 #pragma once
+#pragma once
 #include <QWidget>
 #include <QPainter>
 #include <QPropertyAnimation>
@@ -7,6 +8,9 @@
 #include <QEasingCurve>
 #include <QColor>
 #include <QFont>
+#include <QIcon>
+#include <QMouseEvent>
+#include <QPaintEvent>
 
 /**
  * Material Design 风格的按钮组件
@@ -31,7 +35,7 @@ public:
     void setIcon(const QIcon &icon);
     void setButtonType(ButtonType type);
     void setAccentColor(const QColor &color);
-    void setEnabled(bool enabled) override;
+    void setEnabled(bool enabled);
     
     qreal rippleRadius() const { return m_rippleRadius; }
     void setRippleRadius(qreal radius);

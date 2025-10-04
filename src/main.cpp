@@ -7,7 +7,7 @@
 #include <QPainter>
 #include <QTimer>
 #include <QDebug>
-#include "playerwindow.h"
+#include "../include/playerwindow.h"
 #include "../include/playlistmanager.h"
 
 QPixmap createSplashScreen() {

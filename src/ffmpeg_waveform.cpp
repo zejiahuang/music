@@ -1,4 +1,4 @@
-#include "ffmpeg_waveform.h"
+#include "../include/ffmpeg_waveform.h"
 #include <QDebug>
 extern "C" {
 #include <libavformat/avformat.h>

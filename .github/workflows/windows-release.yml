@@ -444,24 +444,33 @@ jobs:
           # 尝试获取Git标签，如果失败则使用默认版本
           $ErrorActionPreference = "SilentlyContinue"
           $version = git describe --tags --abbrev=0 2>$null
+          $gitExitCode = $LASTEXITCODE
           $ErrorActionPreference = "Stop"
           
-          if ([string]::IsNullOrEmpty($version) -or $LASTEXITCODE -ne 0) {
-            Write-Host "Warning: No Git tags found, using default version"
+          if ([string]::IsNullOrEmpty($version) -or $gitExitCode -ne 0) {
+            Write-Host "Warning: No Git tags found (git exit code: $gitExitCode), using default version"
             $version = "dev"
+            # 检查是否有任何标签
+            $allTags = git tag -l 2>$null
+            if ($allTags) {
+              Write-Host "Available tags: $allTags"
+            } else {
+              Write-Host "No tags exist in this repository"
+            }
           } else {
             Write-Host "Found Git tag: $version"
           }
           
           $zipName = "musicplayer-windows-$version.zip"
           
-          # 只在标签发布时创建发布包
-          if ("${{ github.ref }}" -like "refs/tags/*") {
-            Compress-Archive -Path "release/*" -DestinationPath $zipName
+          # 创建发布包（无论是否有标签）
+          if (Test-Path "release") {
+            Compress-Archive -Path "release/*" -DestinationPath $zipName -Force
             Write-Host "Created release package: $zipName"
             Get-ChildItem -Path $zipName
           } else {
-            Write-Host "Skipping release package creation (not a tag release)"
+            Write-Error "Release directory not found"
+            exit 1
           }
 
       - name: Upload build artifacts

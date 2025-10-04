@@ -1,4 +1,4 @@
-#include "ffmpegplayer.h"
+#include "../include/ffmpegplayer.h"
 #include <QDebug>
 
 class FFmpegPlayer::Private {

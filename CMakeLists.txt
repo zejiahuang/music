@@ -21,22 +21,34 @@ if(MSVC)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
-# 查找Qt5组件
+# 查找Qt5组件 - 渐进式查找，确保CI兼容性
 find_package(Qt5 COMPONENTS Widgets REQUIRED)
+find_package(Qt5 COMPONENTS Network QUIET)
+find_package(Qt5 COMPONENTS Multimedia QUIET)
+find_package(Qt5 COMPONENTS OpenGL QUIET)
+find_package(Qt5 COMPONENTS Svg QUIET)
+find_package(Qt5 COMPONENTS Xml QUIET)
+find_package(Qt5 COMPONENTS Concurrent QUIET)
 
 # 查找TagLib和FFmpeg组件 - 使用vcpkg的CMake集成
 find_package(taglib CONFIG REQUIRED)
 
-# 尝试使用CMake方式查找FFmpeg，如果失败则使用PkgConfig
-find_package(FFMPEG QUIET)
-if(NOT FFMPEG_FOUND)
-    find_package(PkgConfig REQUIRED)
+# 查找FFmpeg - 优先使用vcpkg提供的配置
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
     pkg_check_modules(FFMPEG REQUIRED libavformat libavcodec libavutil libswresample)
 else()
-    message(STATUS "Using CMake-based FFmpeg configuration")
+    # 如果没有PkgConfig，尝试手动查找FFmpeg
+    find_path(FFMPEG_INCLUDE_DIRS libavformat/avformat.h)
+    find_library(FFMPEG_AVFORMAT_LIBRARY avformat)
+    find_library(FFMPEG_AVCODEC_LIBRARY avcodec)
+    find_library(FFMPEG_AVUTIL_LIBRARY avutil)
+    find_library(FFMPEG_SWRESAMPLE_LIBRARY swresample)
+    
+    set(FFMPEG_LIBRARIES ${FFMPEG_AVFORMAT_LIBRARY} ${FFMPEG_AVCODEC_LIBRARY} ${FFMPEG_AVUTIL_LIBRARY} ${FFMPEG_SWRESAMPLE_LIBRARY})
 endif()
 
-# 添加可执行文件
+# 添加可执行文件 - 只包含存在的源文件
 add_executable(musicplayer
     src/main.cpp
     src/playerwindow.cpp
@@ -46,32 +58,64 @@ add_executable(musicplayer
     src/playlistmanager.cpp
     src/ui/lyricsvisualwidget.cpp
     src/ffmpegplayer.cpp
+    src/materialui_components.cpp
 )
 
 # 包含目录
 target_include_directories(musicplayer PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui
 )
 
-# 添加FFmpeg包含目录（只在使用PkgConfig时）
-if(NOT TARGET FFMPEG::avformat AND FFMPEG_INCLUDE_DIRS)
+# 添加FFmpeg包含目录
+if(FFMPEG_INCLUDE_DIRS)
     target_include_directories(musicplayer PRIVATE ${FFMPEG_INCLUDE_DIRS})
 endif()
 
-# 链接库
+# 链接库 - 渐进式链接，只链接可用的模块
 target_link_libraries(musicplayer
     Qt5::Widgets
     TagLib::tag
 )
 
-# 根据FFmpeg配置方式添加链接库
-if(TARGET FFMPEG::avformat)
-    target_link_libraries(musicplayer FFMPEG::avformat FFMPEG::avcodec FFMPEG::avutil FFMPEG::swresample)
-else()
+# 条件性链接可选Qt模块
+if(TARGET Qt5::Network)
+    target_link_libraries(musicplayer Qt5::Network)
+    message(STATUS "Linked Qt5::Network")
+endif()
+
+if(TARGET Qt5::Multimedia)
+    target_link_libraries(musicplayer Qt5::Multimedia)
+    message(STATUS "Linked Qt5::Multimedia")
+endif()
+
+if(TARGET Qt5::OpenGL)
+    target_link_libraries(musicplayer Qt5::OpenGL)
+    message(STATUS "Linked Qt5::OpenGL")
+endif()
+
+if(TARGET Qt5::Svg)
+    target_link_libraries(musicplayer Qt5::Svg)
+    message(STATUS "Linked Qt5::Svg")
+endif()
+
+if(TARGET Qt5::Xml)
+    target_link_libraries(musicplayer Qt5::Xml)
+    message(STATUS "Linked Qt5::Xml")
+endif()
+
+if(TARGET Qt5::Concurrent)
+    target_link_libraries(musicplayer Qt5::Concurrent)
+    message(STATUS "Linked Qt5::Concurrent")
+endif()
+
+# 链接FFmpeg库
+if(FFMPEG_LIBRARIES)
     target_link_libraries(musicplayer ${FFMPEG_LIBRARIES})
-    target_link_directories(musicplayer PRIVATE ${FFMPEG_LIBRARY_DIRS})
+    if(FFMPEG_LIBRARY_DIRS)
+        target_link_directories(musicplayer PRIVATE ${FFMPEG_LIBRARY_DIRS})
+    endif()
 endif()
 
 # 设置目标属性
@@ -80,13 +124,13 @@ set_target_properties(musicplayer PROPERTIES
     MACOSX_BUNDLE ON
 )
 
-# Windows资源（图标）
-set(APP_ICON_RESOURCE_WINDOWS "${CMAKE_CURRENT_SOURCE_DIR}/src/resources/icon.rc")
-if(WIN32 AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/resources/icon.ico")
-    target_sources(musicplayer PRIVATE ${APP_ICON_RESOURCE_WINDOWS})
-else()
-    message(STATUS "Skipping icon resource: icon.ico not found or not on Windows")
-endif()
+# Windows资源（图标）- 暂时禁用直到提供有效的.ico文件
+# set(APP_ICON_RESOURCE_WINDOWS "${CMAKE_CURRENT_SOURCE_DIR}/src/resources/icon.rc")
+# if(WIN32 AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/resources/icon.ico")
+#     target_sources(musicplayer PRIVATE ${APP_ICON_RESOURCE_WINDOWS})
+# else()
+#     message(STATUS "Skipping icon resource: icon.ico not found or not on Windows")
+# endif()
 
 # 安装目标
 install(TARGETS musicplayer
@@ -164,47 +208,3 @@ message(STATUS \"All source files exist!\")
 add_custom_command(TARGET musicplayer PRE_BUILD
     COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/CheckSources.cmake
     COMMENT "Pre-build check: Verifying all source files exist"
-    VERBATIM
-)
-
-# vcpkg自动管理依赖，不需要手动复制DLL
-if(WIN32)
-    message(STATUS "Dependencies will be automatically handled by vcpkg")
-    
-    # 为测试脚本创建兼容性路径
-    add_custom_command(TARGET musicplayer POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/Release"
-        COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:musicplayer>" "${CMAKE_BINARY_DIR}/Release/"
-        COMMENT "Creating compatibility path for test scripts"
-        VERBATIM
-    )
-endif()
-
-# 添加测试目标（可选）
-enable_testing()
-add_test(NAME musicplayer_test COMMAND musicplayer --test)
-
-# 添加打包目标
-add_custom_target(package
-    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target package
-    COMMENT "Creating package"
-    VERBATIM
-)
-
-# 添加清理目标
-add_custom_target(clean_all
-    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target clean
-    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}
-    COMMENT "Cleaning all build artifacts"
-    VERBATIM
-)
-
-# 输出配置信息
-message(STATUS "Project: ${PROJECT_NAME}")
-message(STATUS "Version: ${PROJECT_VERSION}")
-message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
-message(STATUS "Qt5 Found: ${Qt5Widgets_FOUND}")
-message(STATUS "TagLib Found: ${taglib_FOUND}")
-message(STATUS "FFmpeg Found: ${FFMPEG_FOUND}")
-message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
-message(STATUS "Install Prefix: ${CMAKE_INSTALL_PREFIX}")

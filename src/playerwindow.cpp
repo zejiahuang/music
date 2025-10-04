@@ -1444,6 +1444,174 @@ void PlayerWindow::setupEqualizer() {
     }
 }
 
+void PlayerWindow::setupStyle() {
+    // 设置默认（浅色）主题样式
+    QString lightStyle = R"(
+    /* 主窗口样式 */
+    QMainWindow {
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+            stop:0 #f8f9fa, stop:1 #e9ecef);
+        color: #212529;
+    }
+    
+    /* 左侧面板 */
+    QFrame#leftPanel {
+        background: rgba(255, 255, 255, 0.95);
+        border-right: 1px solid #dee2e6;
+    }
+    
+    /* 右侧面板 */
+    QFrame#rightPanel {
+        background: rgba(255, 255, 255, 0.9);
+    }
+    
+    /* 搜索框 */
+    QLineEdit#searchEdit {
+        background: white;
+        border: 2px solid #e9ecef;
+        border-radius: 20px;
+        padding: 10px 15px;
+        font-size: 14px;
+        color: #495057;
+    }
+    QLineEdit#searchEdit:focus {
+        border-color: #6f42c1;
+        outline: none;
+    }
+    
+    /* 播放列表 */
+    QListWidget#playlistWidget {
+        background: white;
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+        outline: none;
+    }
+    QListWidget#playlistWidget::item {
+        border-bottom: 1px solid #f1f3f5;
+        padding: 12px;
+        font-size: 14px;
+    }
+    QListWidget#playlistWidget::item:hover {
+        background: rgba(111, 66, 193, 0.1);
+    }
+    QListWidget#playlistWidget::item:selected {
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+            stop:0 #6f42c1, stop:1 #8b5fbf);
+        color: white;
+    }
+    
+    /* 正在播放区域 */
+    QFrame#nowPlayingFrame {
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+            stop:0 #ffffff, stop:1 #f8f9fa);
+        border-radius: 15px;
+        border: 1px solid #e9ecef;
+    }
+    
+    /* 控制面板 */
+    QFrame#controlsFrame {
+        background: rgba(255, 255, 255, 0.95);
+        border-top: 1px solid #e9ecef;
+    }
+    
+    /* 播放控制按钮 */
+    QPushButton#playPauseButton {
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+            stop:0 #6f42c1, stop:1 #5a32a3);
+        border: none;
+        border-radius: 25px;
+        color: white;
+        font-size: 16px;
+        font-weight: bold;
+    }
+    QPushButton#playPauseButton:hover {
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+            stop:0 #7952cc, stop:1 #6439b8);
+    }
+    QPushButton#playPauseButton:pressed {
+        background: #5a32a3;
+    }
+    
+    QPushButton#previousButton, QPushButton#nextButton,
+    QPushButton#playModeButton, QPushButton#volumeButton,
+    QPushButton#equalizerButton, QPushButton#themeButton {
+        background: rgba(111, 66, 193, 0.1);
+        border: 2px solid rgba(111, 66, 193, 0.3);
+        border-radius: 20px;
+        color: #6f42c1;
+        font-size: 14px;
+    }
+    QPushButton#previousButton:hover, QPushButton#nextButton:hover,
+    QPushButton#playModeButton:hover, QPushButton#volumeButton:hover,
+    QPushButton#equalizerButton:hover, QPushButton#themeButton:hover {
+        background: rgba(111, 66, 193, 0.2);
+        border-color: #6f42c1;
+    }
+    
+    /* 进度滑块 */
+    QSlider#progressSlider {
+        height: 8px;
+    }
+    QSlider#progressSlider::groove:horizontal {
+        background: #e9ecef;
+        height: 6px;
+        border-radius: 3px;
+    }
+    QSlider#progressSlider::handle:horizontal {
+        background: #6f42c1;
+        width: 16px;
+        height: 16px;
+        border-radius: 8px;
+        margin-top: -5px;
+        margin-bottom: -5px;
+    }
+    QSlider#progressSlider::sub-page:horizontal {
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
+            stop:0 #6f42c1, stop:1 #8b5fbf);
+        border-radius: 3px;
+    }
+    
+    /* 音量滑块 */
+    QSlider#volumeSlider {
+        height: 6px;
+    }
+    QSlider#volumeSlider::groove:horizontal {
+        background: #e9ecef;
+        height: 4px;
+        border-radius: 2px;
+    }
+    QSlider#volumeSlider::handle:horizontal {
+        background: #6f42c1;
+        width: 12px;
+        height: 12px;
+        border-radius: 6px;
+        margin-top: -4px;
+        margin-bottom: -4px;
+    }
+    QSlider#volumeSlider::sub-page:horizontal {
+        background: #6f42c1;
+        border-radius: 2px;
+    }
+    
+    /* 时间标签 */
+    QLabel#timeLabel {
+        font-size: 12px;
+        color: #6c757d;
+        font-family: 'Courier New', monospace;
+    }
+    
+    /* 歌词可视化控件 */
+    LyricsVisualWidget#lyricsWidget {
+        background: white;
+        border: 1px solid #e9ecef;
+        border-radius: 10px;
+    }
+    )";
+    
+    setStyleSheet(lightStyle);
+    applyModernStyle();
+}
+
 void PlayerWindow::applyModernStyle() {
     // 现代化样式将在 setupStyle 中实现
 }

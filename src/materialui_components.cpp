@@ -103,7 +103,9 @@ void MaterialButton::paintEvent(QPaintEvent *event) {
         rippleColor.setAlpha(50);
         painter.setBrush(rippleColor);
         painter.setPen(Qt::NoPen);
-        painter.drawEllipse(m_rippleCenter, m_rippleRadius, m_rippleRadius);
+        painter.drawEllipse(QRectF(m_rippleCenter.x() - m_rippleRadius/2, 
+                                   m_rippleCenter.y() - m_rippleRadius/2, 
+                                   m_rippleRadius, m_rippleRadius));
         painter.restore();
     }
 }

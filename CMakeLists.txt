@@ -162,7 +162,7 @@ if(NOT FFMPEG_FOUND)
     message(FATAL_ERROR "FFmpeg not found. Please ensure FFmpeg is installed via vcpkg.")
 endif()
 
-# 添加可执行文件 - 只包含存在的源文件
+# 添加可执行文件 - 包含头文件以确保MOC正确处理
 add_executable(musicplayer
     src/main.cpp
     src/playerwindow.cpp
@@ -173,6 +173,12 @@ add_executable(musicplayer
     src/ui/lyricsvisualwidget.cpp
     src/ffmpegplayer.cpp
     src/materialui_components.cpp
+    
+    # 包含Q_OBJECT宏的头文件，确保MOC处理
+    include/playerwindow.h
+    include/ffmpegplayer.h
+    include/materialui_components.h
+    src/ui/lyricsvisualwidget.h
 )
 
 # 包含目录

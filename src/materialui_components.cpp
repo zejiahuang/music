@@ -75,6 +75,11 @@ void MaterialButton::setShadowElevation(qreal elevation) {
     updateShadow();
 }
 
+void MaterialButton::setEnabled(bool enabled) {
+    QWidget::setEnabled(enabled);
+    update();
+}
+
 void MaterialButton::paintEvent(QPaintEvent *event) {
     Q_UNUSED(event)
     QPainter painter(this);

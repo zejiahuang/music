@@ -806,7 +806,7 @@ void PlayerWindow::dropEvent(QDropEvent *event) {
 
 void PlayerWindow::applyEnhancedMaterialStyle() {
     // 主窗口样式
-    QString enhancedStyle = R"(
+    QString enhancedStyle = R"delim(
     /* 主窗口现代化样式 */
     QMainWindow {
         background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
@@ -891,7 +891,7 @@ void PlayerWindow::applyEnhancedMaterialStyle() {
         border: none;
         background: none;
     }
-    )";
+    )delim";
     
     setStyleSheet(enhancedStyle);
     
@@ -957,27 +957,10 @@ void PlayerWindow::startButtonGlowEffect(QWidget* button) {
     glowSequence->addAnimation(glowBack);
     glowSequence->start(QAbstractAnimation::DeleteWhenStopped);
 }
-    QLabel#timeLabel {
-        font-size: 12px;
-        color: #6c757d;
-        font-family: 'Courier New', monospace;
-    }
-    
-    /* 歌词可视化控件 */
-    LyricsVisualWidget#lyricsWidget {
-        background: white;
-        border: 1px solid #e9ecef;
-        border-radius: 10px;
-    }
-    )";
-    
-    setStyleSheet(lightStyle);
-    applyModernStyle();
-}
 
 void PlayerWindow::switchTheme(bool dark) {
     if (dark) {
-        QString darkStyle = R"(
+        QString darkStyle = R"delim(
         QMainWindow {
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
                 stop:0 #1a1a1a, stop:1 #2d2d2d);
@@ -1067,7 +1050,7 @@ void PlayerWindow::switchTheme(bool dark) {
             background: #404040;
             border: 1px solid #555555;
         }
-        )";
+        )delim";
         
         setStyleSheet(darkStyle);
     } else {
@@ -1236,7 +1219,7 @@ QPixmap PlayerWindow::createDefaultAlbumCover() {
 
 void PlayerWindow::setupStyle() {
     // 设置默认（浅色）主题样式
-    QString lightStyle = R"(
+    QString lightStyle = R"delim(
     /* 主窗口样式 */
     QMainWindow {
         background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
@@ -1396,7 +1379,7 @@ void PlayerWindow::setupStyle() {
         border: 1px solid #e9ecef;
         border-radius: 10px;
     }
-    )";
+    )delim";
     
     setStyleSheet(lightStyle);
     applyModernStyle();

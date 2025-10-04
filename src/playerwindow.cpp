@@ -31,6 +31,7 @@
 #include <QProgressBar>
 #include <QTimer>
 #include <QStandardPaths>
+#include <QListWidgetItem>
 #include "../include/ffmpeg_waveform.h"
 #include "../include/taglib_utils.h"
 #include "../include/materialui_components.h"
@@ -67,6 +68,7 @@ PlayerWindow::PlayerWindow(QWidget *parent)
     , currentPlayMode(PlayMode::Sequential)
     , isDarkTheme(false)
     , currentTrackIndex(-1)
+    , totalDuration(0)
     , volumeAnimation(nullptr)
     , shadowEffect(nullptr)
     , playlistCard(nullptr)
@@ -78,6 +80,7 @@ PlayerWindow::PlayerWindow(QWidget *parent)
     , materialVolumeButton(nullptr)
     , materialThemeButton(nullptr)
     , materialProgressBar(nullptr)
+    , materialVolumeSlider(nullptr)
     , cardAnimation(nullptr)
     , glowAnimation(nullptr)
     , layoutAnimation(nullptr)
@@ -115,6 +118,7 @@ void PlayerWindow::setupUi() {
     setupLeftPanel();
     setupRightPanel();
     setupMaterialControls();
+    // setupControls(); // 暂时禁用传统控件，使用Material Design组件
     
     // 组装布局
     QVBoxLayout *contentLayout = new QVBoxLayout();
@@ -237,10 +241,10 @@ void PlayerWindow::setupMaterialControls() {
     materialVolumeButton->setFixedSize(40, 40);
     materialVolumeButton->setAccentColor(QColor(103, 58, 183));
     
-    volumeSlider = new QSlider(Qt::Horizontal);
-    volumeSlider->setRange(0, 100);
-    volumeSlider->setValue(70);
-    volumeSlider->setFixedWidth(100);
+    materialVolumeSlider = new QSlider(Qt::Horizontal);
+    materialVolumeSlider->setRange(0, 100);
+    materialVolumeSlider->setValue(70);
+    materialVolumeSlider->setFixedWidth(100);
     
     // 主题切换按钮
     materialThemeButton = new MaterialButton("", MaterialButton::Outlined);
@@ -249,7 +253,7 @@ void PlayerWindow::setupMaterialControls() {
     materialThemeButton->setAccentColor(QColor(103, 58, 183));
     
     rightLayout->addWidget(materialVolumeButton);
-    rightLayout->addWidget(volumeSlider);
+    rightLayout->addWidget(materialVolumeSlider);
     rightLayout->addWidget(materialThemeButton);
     
     // 组装所有控件
@@ -263,7 +267,10 @@ void PlayerWindow::setupMaterialControls() {
     connect(materialPrevButton, &MaterialButton::clicked, this, &PlayerWindow::previousTrack);
     connect(materialThemeButton, &MaterialButton::clicked, this, &PlayerWindow::toggleTheme);
     connect(materialProgressBar, &AdvancedProgressBar::clicked, [this](qreal position) {
-        seekToPosition(position * 100);
+        if (totalDuration > 0) {
+            qint64 seekPosition = qint64(position * totalDuration);
+            seekToPosition(seekPosition);
+        }
     });
 }
 
@@ -651,28 +658,14 @@ void PlayerWindow::setupConnections() {
     connect(player, &FFmpegPlayer::positionChanged, this, &PlayerWindow::updateProgress);
     connect(player, &FFmpegPlayer::durationChanged, [this](qint64 duration) {
         totalTimeLabel->setText(formatTime(duration));
-        progressSlider->setRange(0, duration);
+        // Material Design 进度条使用 0-1 的进度值
+        // 存储最大时长供后续使用
+        totalDuration = duration;
     });
     
-    // 控制按钮连接
-    connect(playPauseButton, &QPushButton::clicked, this, &PlayerWindow::playPause);
-    connect(previousButton, &QPushButton::clicked, this, &PlayerWindow::previousTrack);
-    connect(nextButton, &QPushButton::clicked, this, &PlayerWindow::nextTrack);
-    connect(playModeButton, &QPushButton::clicked, this, &PlayerWindow::changePlayMode);
-    
-    // 进度和音量控制
-    connect(progressSlider, &QSlider::sliderPressed, [this]() {
-        progressTimer->stop();
-    });
-    connect(progressSlider, &QSlider::sliderReleased, [this]() {
-        seekToPosition(progressSlider->value());
-        progressTimer->start();
-    });
-    connect(volumeSlider, &QSlider::valueChanged, this, &PlayerWindow::setVolume);
-    
-    // 功能按钮连接
-    connect(equalizerButton, &QPushButton::clicked, this, &PlayerWindow::showEqualizer);
-    connect(themeButton, &QPushButton::clicked, this, &PlayerWindow::toggleTheme);
+    // Material Design 控制按钮连接（已在 setupMaterialControls 中设置）
+    // 这里添加额外的连接
+    connect(materialVolumeSlider, &QSlider::valueChanged, this, &PlayerWindow::setVolume);
     
     // 播放列表连接
     connect(playlistWidget, &QListWidget::itemClicked, this, &PlayerWindow::onPlaylistItemClicked);
@@ -680,11 +673,14 @@ void PlayerWindow::setupConnections() {
     
     // 进度定时器
     connect(progressTimer, &QTimer::timeout, [this]() {
-        if (!progressSlider->isSliderDown()) {
-            qint64 position = player->position();
-            progressSlider->setValue(position);
-            currentTimeLabel->setText(formatTime(position));
+        // 使用 Material Design 进度条
+        if (!materialProgressBar->isEnabled()) return; // 简单检查
+        qint64 position = player->position();
+        if (totalDuration > 0) {
+            qreal progress = qreal(position) / qreal(totalDuration);
+            materialProgressBar->setProgress(progress);
         }
+        currentTimeLabel->setText(formatTime(position));
     });
 }
 
@@ -733,14 +729,17 @@ void PlayerWindow::changePlayMode() {
 }
 
 void PlayerWindow::updateProgress() {
-    if (!progressSlider->isSliderDown()) {
-        qint64 position = player->position();
-        progressSlider->setValue(position);
-        currentTimeLabel->setText(formatTime(position));
-        
-        // 更新歌词位置
-        lyricsVisualWidget->updatePosition(position);
+    // 使用 Material Design 进度条
+    if (!materialProgressBar->isEnabled()) return; // 简单检查
+    qint64 position = player->position();
+    if (totalDuration > 0) {
+        qreal progress = qreal(position) / qreal(totalDuration);
+        materialProgressBar->setProgress(progress);
     }
+    currentTimeLabel->setText(formatTime(position));
+    
+    // 更新歌词位置
+    lyricsVisualWidget->updatePosition(position);
 }
 
 void PlayerWindow::onTrackChanged() {
@@ -1407,43 +1406,6 @@ QPixmap PlayerWindow::createDefaultAlbumCover() {
     return pixmap;
 }
 
-void PlayerWindow::setupEqualizer() {
-    equalizerWindow = new QWidget();
-    equalizerWindow->setWindowTitle("音频均衡器");
-    equalizerWindow->setFixedSize(400, 300);
-    equalizerWindow->setWindowFlags(Qt::Window | Qt::WindowCloseButtonHint);
-    
-    QGridLayout *eqLayout = new QGridLayout(equalizerWindow);
-    
-    // 频率标签
-    QStringList frequencies = {"60", "170", "310", "600", "1K", "3K", "6K", "12K", "14K", "16K"};
-    
-    for (int i = 0; i < 10; i++) {
-        // 频率标签
-        QLabel *freqLabel = new QLabel(frequencies[i] + "Hz");
-        freqLabel->setAlignment(Qt::AlignCenter);
-        eqLayout->addWidget(freqLabel, 0, i);
-        
-        // 均衡器滑块
-        eqSliders[i] = new QSlider(Qt::Vertical);
-        eqSliders[i]->setRange(-12, 12);
-        eqSliders[i]->setValue(0);
-        eqSliders[i]->setTickPosition(QSlider::TicksBothSides);
-        eqSliders[i]->setTickInterval(6);
-        eqLayout->addWidget(eqSliders[i], 1, i);
-        
-        // 数值标签
-        QLabel *valueLabel = new QLabel("0dB");
-        valueLabel->setAlignment(Qt::AlignCenter);
-        eqLayout->addWidget(valueLabel, 2, i);
-        
-        // 连接信号更新数值
-        connect(eqSliders[i], QOverload<int>::of(&QSlider::valueChanged), [valueLabel](int value) {
-            valueLabel->setText(QString("%1dB").arg(value > 0 ? "+" + QString::number(value) : QString::number(value)));
-        });
-    }
-}
-
 void PlayerWindow::setupStyle() {
     // 设置默认（浅色）主题样式
     QString lightStyle = R"(
@@ -1614,4 +1576,86 @@ void PlayerWindow::setupStyle() {
 
 void PlayerWindow::applyModernStyle() {
     // 现代化样式将在 setupStyle 中实现
+}
+
+void PlayerWindow::setupEqualizer() {
+    // 创建均衡器窗口
+    equalizerWindow = new QWidget();
+    equalizerWindow->setWindowTitle("音频均衡器");
+    equalizerWindow->setFixedSize(400, 300);
+    equalizerWindow->setWindowModality(Qt::ApplicationModal);
+    
+    QVBoxLayout *layout = new QVBoxLayout(equalizerWindow);
+    layout->setContentsMargins(20, 20, 20, 20);
+    layout->setSpacing(15);
+    
+    // 均衡器标题
+    QLabel *titleLabel = new QLabel("10频段均衡器");
+    titleLabel->setAlignment(Qt::AlignCenter);
+    titleLabel->setStyleSheet("font-size: 16px; font-weight: bold; color: #333;");
+    layout->addWidget(titleLabel);
+    
+    // 均衡器滑块容器
+    QFrame *eqFrame = new QFrame();
+    QHBoxLayout *eqLayout = new QHBoxLayout(eqFrame);
+    eqLayout->setContentsMargins(10, 10, 10, 10);
+    eqLayout->setSpacing(10);
+    
+    // 创建10个频段滑块
+    QStringList frequencies = {"32Hz", "64Hz", "125Hz", "250Hz", "500Hz", 
+                              "1kHz", "2kHz", "4kHz", "8kHz", "16kHz"};
+    
+    for (int i = 0; i < 10; i++) {
+        QVBoxLayout *sliderLayout = new QVBoxLayout();
+        sliderLayout->setSpacing(5);
+        
+        QLabel *freqLabel = new QLabel(frequencies[i]);
+        freqLabel->setAlignment(Qt::AlignCenter);
+        freqLabel->setStyleSheet("font-size: 10px; color: #666;");
+        
+        eqSliders[i] = new QSlider(Qt::Vertical);
+        eqSliders[i]->setRange(-12, 12);
+        eqSliders[i]->setValue(0);
+        eqSliders[i]->setFixedHeight(150);
+        
+        QLabel *valueLabel = new QLabel("0dB");
+        valueLabel->setAlignment(Qt::AlignCenter);
+        valueLabel->setStyleSheet("font-size: 10px; color: #333;");
+        
+        // 连接滑块值变化信号
+        connect(eqSliders[i], &QSlider::valueChanged, [valueLabel](int value) {
+            valueLabel->setText(QString("%1dB").arg(value));
+        });
+        
+        sliderLayout->addWidget(freqLabel);
+        sliderLayout->addWidget(eqSliders[i]);
+        sliderLayout->addWidget(valueLabel);
+        
+        eqLayout->addLayout(sliderLayout);
+    }
+    
+    layout->addWidget(eqFrame);
+    
+    // 预设和控制按钮
+    QFrame *controlFrame = new QFrame();
+    QHBoxLayout *controlLayout = new QHBoxLayout(controlFrame);
+    
+    QPushButton *resetButton = new QPushButton("重置");
+    QPushButton *closeButton = new QPushButton("关闭");
+    
+    connect(resetButton, &QPushButton::clicked, [this]() {
+        for (int i = 0; i < 10; i++) {
+            eqSliders[i]->setValue(0);
+        }
+    });
+    
+    connect(closeButton, &QPushButton::clicked, [this]() {
+        equalizerWindow->hide();
+    });
+    
+    controlLayout->addWidget(resetButton);
+    controlLayout->addStretch();
+    controlLayout->addWidget(closeButton);
+    
+    layout->addWidget(controlFrame);
 }

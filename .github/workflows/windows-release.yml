@@ -268,23 +268,49 @@ jobs:
           
           # 复制主程序
           Copy-Item "build/Release/musicplayer.exe" -Destination "release/"
+          Write-Host "✓ Main executable copied"
           
           # 复制Qt依赖
           $qtBinPath = "$env:QT5_DIR/bin"
           & "$env:QT5_DIR/bin/windeployqt.exe" --release --no-compiler-runtime --no-translations release/musicplayer.exe
+          Write-Host "✓ Qt dependencies processed"
           
           # 复制vcpkg依赖
           $vcpkgBinPath = "${{ env.VCPKG_DIR }}\installed\x64-windows\bin"
-          Copy-Item "$vcpkgBinPath/tag.dll" -Destination "release/"
-          Copy-Item "$vcpkgBinPath/avcodec-*.dll" -Destination "release/"
-          Copy-Item "$vcpkgBinPath/avformat-*.dll" -Destination "release/"
-          Copy-Item "$vcpkgBinPath/avutil-*.dll" -Destination "release/"
-          Copy-Item "$vcpkgBinPath/swresample-*.dll" -Destination "release/"
+          Write-Host "Looking for DLLs in: $vcpkgBinPath"
+          
+          # 检查并复制TagLib
+          if (Test-Path "$vcpkgBinPath/tag.dll") {
+            Copy-Item "$vcpkgBinPath/tag.dll" -Destination "release/"
+            Write-Host "✓ TagLib DLL copied"
+          } else {
+            Write-Host "⚠ TagLib DLL not found, listing available DLLs:"
+            Get-ChildItem "$vcpkgBinPath" -Filter "*.dll" | Select-Object Name
+          }
+          
+          # 检查并复制FFmpeg DLLs
+          $ffmpegDlls = @("avcodec-*.dll", "avformat-*.dll", "avutil-*.dll", "swresample-*.dll")
+          foreach ($pattern in $ffmpegDlls) {
+            $files = Get-ChildItem "$vcpkgBinPath" -Filter $pattern
+            if ($files.Count -gt 0) {
+              Copy-Item "$vcpkgBinPath/$pattern" -Destination "release/"
+              Write-Host "✓ Copied $($files.Count) files matching $pattern"
+            } else {
+              Write-Host "⚠ No files found matching $pattern"
+            }
+          }
           
           # 复制资源文件
           if (Test-Path "src/resources") {
             Copy-Item -Path "src/resources" -Destination "release/" -Recurse -Force
+            Write-Host "✓ Resources copied"
+          } else {
+            Write-Host "⚠ No resources directory found"
           }
+          
+          # 列出最终的发布目录内容
+          Write-Host "Final release directory contents:"
+          Get-ChildItem "release" -Recurse | Select-Object Name, Length
 
       - name: Create release package
         run: |
@@ -308,7 +334,7 @@ jobs:
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: musicplayer-windows-${{ github.ref_name }}
+          name: musicplayer-windows-${{ github.run_number }}
           path: musicplayer-windows-*.zip
 
       - name: Create GitHub Release

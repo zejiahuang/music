@@ -1,9 +1,9 @@
 #include "../include/playlistmanager.h"
+#include "../include/taglib_utils.h"
+#include "../include/ffmpeg_waveform.h"
 #include <QDir>
 #include <QFile>
 #include <QJsonDocument>
-#include "../include/taglib_utils.h"
-#include "../include/ffmpeg_waveform.h"
 
 void PlaylistManager::scanMusicFolders(const QString& musicRootDir, const QString& myMusicDir) {
     QDir musicDir(musicRootDir);

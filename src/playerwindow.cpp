@@ -1,4 +1,3 @@
-#include "playerwindow.h"
 #include "../include/playerwindow.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>

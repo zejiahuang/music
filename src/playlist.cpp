@@ -1,4 +1,4 @@
-#include "playlist.h"
+#include "../include/playlist.h"
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QJsonDocument>

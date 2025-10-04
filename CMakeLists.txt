@@ -33,19 +33,36 @@ find_package(Qt5 COMPONENTS Concurrent QUIET)
 # 查找TagLib和FFmpeg组件 - 使用vcpkg的CMake集成
 find_package(taglib CONFIG REQUIRED)
 
-# 查找FFmpeg - 优先使用vcpkg提供的配置
+# 查找FFmpeg - 使用vcpkg的CMake集成
 find_package(PkgConfig QUIET)
-if(PkgConfig_FOUND)
-    pkg_check_modules(FFMPEG REQUIRED libavformat libavcodec libavutil libswresample)
-else()
-    # 如果没有PkgConfig，尝试手动查找FFmpeg
-    find_path(FFMPEG_INCLUDE_DIRS libavformat/avformat.h)
-    find_library(FFMPEG_AVFORMAT_LIBRARY avformat)
-    find_library(FFMPEG_AVCODEC_LIBRARY avcodec)
-    find_library(FFMPEG_AVUTIL_LIBRARY avutil)
-    find_library(FFMPEG_SWRESAMPLE_LIBRARY swresample)
-    
-    set(FFMPEG_LIBRARIES ${FFMPEG_AVFORMAT_LIBRARY} ${FFMPEG_AVCODEC_LIBRARY} ${FFMPEG_AVUTIL_LIBRARY} ${FFMPEG_SWRESAMPLE_LIBRARY})
+set(FFMPEG_FOUND FALSE)
+set(FFMPEG_LIBRARIES)
+set(FFMPEG_INCLUDE_DIRS)
+set(FFMPEG_LIBRARY_DIRS)
+
+# 优先尝试vcpkg方式（单独查找各个组件）
+find_path(AVFORMAT_INCLUDE_DIR libavformat/avformat.h)
+find_library(AVFORMAT_LIBRARY avformat)
+find_library(AVCODEC_LIBRARY avcodec)
+find_library(AVUTIL_LIBRARY avutil)
+find_library(SWRESAMPLE_LIBRARY swresample)
+
+if(AVFORMAT_INCLUDE_DIR AND AVFORMAT_LIBRARY AND AVCODEC_LIBRARY AND AVUTIL_LIBRARY AND SWRESAMPLE_LIBRARY)
+    set(FFMPEG_FOUND TRUE)
+    set(FFMPEG_INCLUDE_DIRS ${AVFORMAT_INCLUDE_DIR})
+    set(FFMPEG_LIBRARIES ${AVFORMAT_LIBRARY} ${AVCODEC_LIBRARY} ${AVUTIL_LIBRARY} ${SWRESAMPLE_LIBRARY})
+    message(STATUS "Found FFmpeg via vcpkg: ${FFMPEG_LIBRARIES}")
+elseif(PkgConfig_FOUND)
+    # 回退到pkg-config方式（用于非vcpkg环境）
+    pkg_check_modules(FFMPEG QUIET libavformat libavcodec libavutil libswresample)
+    if(FFMPEG_FOUND)
+        message(STATUS "Found FFmpeg via pkg-config: ${FFMPEG_LIBRARIES}")
+    endif()
+endif()
+
+# 如果所有方法都失败，给出明确错误信息
+if(NOT FFMPEG_FOUND)
+    message(FATAL_ERROR "FFmpeg not found. Please ensure FFmpeg is installed via vcpkg or system package manager.")
 endif()
 
 # 添加可执行文件 - 只包含存在的源文件

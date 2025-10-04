@@ -107,6 +107,7 @@ private:
     bool isDarkTheme;
     int currentTrackIndex;
     QStringList playlist;
+    qint64 totalDuration; // 当前歌曲的总时长
     
     // Animation and Effects
     QPropertyAnimation *volumeAnimation;
@@ -122,6 +123,7 @@ private:
     MaterialButton *materialVolumeButton;
     MaterialButton *materialThemeButton;
     AdvancedProgressBar *materialProgressBar;
+    QSlider *materialVolumeSlider;
     
     // Layout and Visual Effects
     QPropertyAnimation *cardAnimation;

@@ -208,3 +208,47 @@ message(STATUS \"All source files exist!\")
 add_custom_command(TARGET musicplayer PRE_BUILD
     COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/CheckSources.cmake
     COMMENT "Pre-build check: Verifying all source files exist"
+    VERBATIM
+)
+
+# vcpkg自动管理依赖，不需要手动复制DLL
+if(WIN32)
+    message(STATUS "Dependencies will be automatically handled by vcpkg")
+    
+    # 为测试脚本创建兼容性路径
+    add_custom_command(TARGET musicplayer POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/Release"
+        COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:musicplayer>" "${CMAKE_BINARY_DIR}/Release/"
+        COMMENT "Creating compatibility path for test scripts"
+        VERBATIM
+    )
+endif()
+
+# 添加测试目标（可选）
+enable_testing()
+add_test(NAME musicplayer_test COMMAND musicplayer --test)
+
+# 添加打包目标
+add_custom_target(package
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target package
+    COMMENT "Creating package"
+    VERBATIM
+)
+
+# 添加清理目标
+add_custom_target(clean_all
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target clean
+    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}
+    COMMENT "Cleaning all build artifacts"
+    VERBATIM
+)
+
+# 输出配置信息
+message(STATUS "Project: ${PROJECT_NAME}")
+message(STATUS "Version: ${PROJECT_VERSION}")
+message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
+message(STATUS "Qt5 Found: ${Qt5Widgets_FOUND}")
+message(STATUS "TagLib Found: ${taglib_FOUND}")
+message(STATUS "FFmpeg Found: ${FFMPEG_FOUND}")
+message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "Install Prefix: ${CMAKE_INSTALL_PREFIX}")

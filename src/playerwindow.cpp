@@ -266,6 +266,7 @@ void PlayerWindow::setupMaterialControls() {
         seekToPosition(position * 100);
     });
 }
+
 void PlayerWindow::setupLeftPanel() {
     // 将播放列表组件添加到Material Card中
     QVBoxLayout *cardLayout = new QVBoxLayout(playlistCard);
@@ -360,7 +361,6 @@ void PlayerWindow::setupLeftPanel() {
     // 连接搜索信号
     connect(searchEdit, &QLineEdit::textChanged, this, &PlayerWindow::onSearchTextChanged);
     connect(playlistWidget, &QListWidget::itemClicked, this, &PlayerWindow::onPlaylistItemClicked);
-}
 }
 
 void PlayerWindow::setupRightPanel() {

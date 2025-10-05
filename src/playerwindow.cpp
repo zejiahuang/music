@@ -649,7 +649,12 @@ void PlayerWindow::setupAnimations() {
     shadowEffect->setBlurRadius(20);
     shadowEffect->setOffset(0, 2);
     shadowEffect->setColor(QColor(0, 0, 0, 30));
-    controlsFrame->setGraphicsEffect(shadowEffect);
+    // 兼容两套UI：传统控件（controlsFrame）与 Material 控件（controlsCard）
+    if (controlsFrame) {
+        controlsFrame->setGraphicsEffect(shadowEffect);
+    } else if (controlsCard) {
+        controlsCard->setGraphicsEffect(shadowEffect);
+    }
 }
 
 void PlayerWindow::setupConnections() {

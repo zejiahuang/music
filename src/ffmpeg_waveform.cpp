@@ -1,6 +1,7 @@
-\#include "../include/ffmpeg_waveform.h"
-\#include <QDebug>
-\include <cmath>
+#include "../include/ffmpeg_waveform.h"
+#include <QDebug>
+#include <cmath>
+#include <algorithm>
 
 #if defined(ENABLE_FFMPEG)
 extern "C" {

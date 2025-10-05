@@ -261,6 +261,11 @@ void MaterialButton::updateShadow() {
     }
 }
 
+// 声明为槽的更新函数，供 Qt MOC 引用
+void MaterialButton::onRippleAnimation() {
+    update();
+}
+
 // MaterialCard Implementation
 MaterialCard::MaterialCard(QWidget *parent)
     : QWidget(parent)
@@ -325,6 +330,113 @@ void MaterialCard::updateShadow() {
         m_shadowEffect->setOffset(0, m_elevation);
         m_shadowEffect->setColor(QColor(0, 0, 0, 30));
     }
+}
+
+// RippleEffect Implementation
+RippleEffect::RippleEffect(QWidget *parent)
+    : QObject(parent)
+    , m_widget(parent)
+    , m_radiusAnimation(new QPropertyAnimation(this, "radius"))
+    , m_opacityAnimation(new QPropertyAnimation(this, "opacity"))
+    , m_radius(0)
+    , m_opacity(0)
+    , m_active(false)
+{
+    if (m_widget) {
+        m_widget->installEventFilter(this);
+    }
+
+    m_radiusAnimation->setDuration(300);
+    m_radiusAnimation->setEasingCurve(QEasingCurve::OutQuad);
+
+    m_opacityAnimation->setDuration(300);
+    m_opacityAnimation->setEasingCurve(QEasingCurve::OutQuad);
+
+    connect(m_radiusAnimation, &QPropertyAnimation::valueChanged, [this]() {
+        if (m_widget) m_widget->update();
+    });
+    connect(m_opacityAnimation, &QPropertyAnimation::valueChanged, [this]() {
+        if (m_widget) m_widget->update();
+    });
+    connect(m_opacityAnimation, &QPropertyAnimation::finished, this, &RippleEffect::onAnimationFinished);
+}
+
+void RippleEffect::setRadius(qreal radius) {
+    m_radius = radius;
+    if (m_widget) m_widget->update();
+}
+
+void RippleEffect::setOpacity(qreal opacity) {
+    m_opacity = opacity;
+    if (m_widget) m_widget->update();
+}
+
+void RippleEffect::startRipple(const QPoint &center, const QColor &color) {
+    m_center = center;
+    m_color = color.isValid() ? color : QColor(0, 0, 0, 60);
+    m_active = true;
+
+    const int maxDim = m_widget ? qMax(m_widget->width(), m_widget->height()) : 0;
+    m_radiusAnimation->stop();
+    m_radiusAnimation->setStartValue(0);
+    m_radiusAnimation->setEndValue(maxDim * 0.8);
+
+    m_opacityAnimation->stop();
+    m_opacityAnimation->setStartValue(0.4);
+    m_opacityAnimation->setEndValue(0.0);
+
+    m_radiusAnimation->start();
+    m_opacityAnimation->start();
+}
+
+bool RippleEffect::eventFilter(QObject *obj, QEvent *event) {
+    if (!m_active || obj != m_widget)
+        return QObject::eventFilter(obj, event);
+
+    if (event->type() == QEvent::Paint && m_widget) {
+        QPainter painter(m_widget);
+        painter.setRenderHint(QPainter::Antialiasing);
+        QColor c = m_color;
+        c.setAlphaF(qBound(0.0, m_opacity, 1.0));
+        painter.setBrush(c);
+        painter.setPen(Qt::NoPen);
+        painter.drawEllipse(QRectF(m_center.x() - m_radius / 2.0,
+                                   m_center.y() - m_radius / 2.0,
+                                   m_radius, m_radius));
+    }
+    return QObject::eventFilter(obj, event);
+}
+
+void RippleEffect::onAnimationFinished() {
+    m_active = false;
+    if (m_widget) m_widget->update();
+}
+
+// SmartTooltip minimal Implementation
+SmartTooltip::SmartTooltip(QWidget *parent)
+    : QWidget(parent)
+    , m_showAnimation(new QPropertyAnimation(this, "windowOpacity"))
+    , m_hideAnimation(new QPropertyAnimation(this, "windowOpacity"))
+    , m_hideTimer(new QTimer(this))
+{
+    setAttribute(Qt::WA_TransparentForMouseEvents);
+    setWindowFlags(Qt::ToolTip | Qt::FramelessWindowHint | Qt::BypassWindowManagerHint);
+    setWindowOpacity(0.0);
+
+    m_showAnimation->setDuration(150);
+    m_showAnimation->setStartValue(0.0);
+    m_showAnimation->setEndValue(1.0);
+
+    m_hideAnimation->setDuration(150);
+    m_hideAnimation->setStartValue(1.0);
+    m_hideAnimation->setEndValue(0.0);
+
+    connect(m_hideAnimation, &QPropertyAnimation::finished, this, &SmartTooltip::onHideAnimation);
+    connect(m_hideTimer, &QTimer::timeout, [this]() { m_hideAnimation->start(); });
+}
+
+void SmartTooltip::onHideAnimation() {
+    hide();
 }
 
 // AdvancedProgressBar Implementation

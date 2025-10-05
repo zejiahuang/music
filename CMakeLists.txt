@@ -30,10 +30,16 @@ find_package(Qt5 COMPONENTS Svg QUIET)
 find_package(Qt5 COMPONENTS Xml QUIET)
 find_package(Qt5 COMPONENTS Concurrent QUIET)
 
-# 查找TagLib和FFmpeg组件 - 使用vcpkg的CMake集成
-find_package(taglib CONFIG REQUIRED)
+# 选项：是否启用外部多媒体依赖（FFmpeg/TagLib）
+option(ENABLE_FFMPEG "Enable FFmpeg features" OFF)
+option(ENABLE_TAGLIB "Enable TagLib metadata reading" OFF)
 
-# 查找FFmpeg - 使用vcpkg的CMake集成
+# 查找TagLib（可选）
+if(ENABLE_TAGLIB)
+    find_package(taglib CONFIG REQUIRED)
+endif()
+
+# 查找FFmpeg - 使用vcpkg的CMake集成（可选）
 find_package(PkgConfig QUIET)
 set(FFMPEG_FOUND FALSE)
 set(FFMPEG_LIBRARIES)
@@ -60,7 +66,7 @@ endif()
 
 # 优先尝试vcpkg方式（单独查找各个组件）
 # 为vcpkg环境添加特定的搜索路径
-if(USING_VCPKG AND DEFINED ENV{VCPKG_ROOT})
+if(ENABLE_FFMPEG AND USING_VCPKG AND DEFINED ENV{VCPKG_ROOT})
     set(VCPKG_INCLUDE_DIR "$ENV{VCPKG_ROOT}/installed/x64-windows/include")
     set(VCPKG_LIB_DIR "$ENV{VCPKG_ROOT}/installed/x64-windows/lib")
     
@@ -101,7 +107,7 @@ if(USING_VCPKG AND DEFINED ENV{VCPKG_ROOT})
         PATHS "${VCPKG_LIB_DIR}"
         NO_DEFAULT_PATH
     )
-else()
+elseif(ENABLE_FFMPEG)
     # 非vcpkg环境或没有VCPKG_ROOT，使用默认查找
     message(STATUS "Using standard library search (non-vcpkg or VCPKG_ROOT not set)")
     
@@ -113,53 +119,34 @@ else()
 endif()
 
 # 调试输出查找结果
-message(STATUS "FFmpeg component search results:")
-message(STATUS "  AVFORMAT_INCLUDE_DIR: ${AVFORMAT_INCLUDE_DIR}")
-message(STATUS "  AVFORMAT_LIBRARY: ${AVFORMAT_LIBRARY}")
-message(STATUS "  AVCODEC_LIBRARY: ${AVCODEC_LIBRARY}")
-message(STATUS "  AVUTIL_LIBRARY: ${AVUTIL_LIBRARY}")
-message(STATUS "  SWRESAMPLE_LIBRARY: ${SWRESAMPLE_LIBRARY}")
+if(ENABLE_FFMPEG)
+    message(STATUS "FFmpeg component search results:")
+    message(STATUS "  AVFORMAT_INCLUDE_DIR: ${AVFORMAT_INCLUDE_DIR}")
+    message(STATUS "  AVFORMAT_LIBRARY: ${AVFORMAT_LIBRARY}")
+    message(STATUS "  AVCODEC_LIBRARY: ${AVCODEC_LIBRARY}")
+    message(STATUS "  AVUTIL_LIBRARY: ${AVUTIL_LIBRARY}")
+    message(STATUS "  SWRESAMPLE_LIBRARY: ${SWRESAMPLE_LIBRARY}")
+endif()
 
-if(AVFORMAT_INCLUDE_DIR AND AVFORMAT_LIBRARY AND AVCODEC_LIBRARY AND AVUTIL_LIBRARY AND SWRESAMPLE_LIBRARY)
+if(ENABLE_FFMPEG AND AVFORMAT_INCLUDE_DIR AND AVFORMAT_LIBRARY AND AVCODEC_LIBRARY AND AVUTIL_LIBRARY AND SWRESAMPLE_LIBRARY)
     set(FFMPEG_FOUND TRUE)
     set(FFMPEG_INCLUDE_DIRS ${AVFORMAT_INCLUDE_DIR})
     set(FFMPEG_LIBRARIES ${AVFORMAT_LIBRARY} ${AVCODEC_LIBRARY} ${AVUTIL_LIBRARY} ${SWRESAMPLE_LIBRARY})
     message(STATUS "✓ Found FFmpeg via vcpkg: ${FFMPEG_LIBRARIES}")
-elseif(PkgConfig_FOUND)
+elseif(ENABLE_FFMPEG AND PkgConfig_FOUND)
     # 回退到pkg-config方式（用于非vcpkg环境）
     message(STATUS "Trying pkg-config as fallback...")
     pkg_check_modules(FFMPEG QUIET libavformat libavcodec libavutil libswresample)
     if(FFMPEG_FOUND)
         message(STATUS "✓ Found FFmpeg via pkg-config: ${FFMPEG_LIBRARIES}")
     endif()
-else()
+elseif(ENABLE_FFMPEG)
     message(STATUS "PkgConfig not found, skipping pkg-config fallback")
 endif()
 
 # 如果所有方法都失败，给出明确错误信息和调试建议
-if(NOT FFMPEG_FOUND)
-    message(STATUS "")
-    message(STATUS "❌ FFmpeg not found. Debugging information:")
-    message(STATUS "")
-    if(DEFINED ENV{VCPKG_ROOT})
-        message(STATUS "VCPKG environment detected:")
-        message(STATUS "  VCPKG_ROOT: $ENV{VCPKG_ROOT}")
-        file(GLOB vcpkg_libs "$ENV{VCPKG_ROOT}/installed/x64-windows/lib/av*.lib")
-        if(vcpkg_libs)
-            message(STATUS "  Found FFmpeg-related libraries:")
-            foreach(lib ${vcpkg_libs})
-                message(STATUS "    ${lib}")
-            endforeach()
-        else()
-            message(STATUS "  ❌ No FFmpeg libraries found in $ENV{VCPKG_ROOT}/installed/x64-windows/lib/")
-            message(STATUS "  Please run: vcpkg install ffmpeg[core,avcodec,avformat,avutil,swresample]:x64-windows")
-        endif()
-    else()
-        message(STATUS "❌ VCPKG_ROOT environment variable not set")
-        message(STATUS "Please ensure vcpkg is properly configured")
-    endif()
-    message(STATUS "")
-    message(FATAL_ERROR "FFmpeg not found. Please ensure FFmpeg is installed via vcpkg.")
+if(ENABLE_FFMPEG AND NOT FFMPEG_FOUND)
+    message(WARNING "FFmpeg not found. Building without FFmpeg. Set -DENABLE_FFMPEG=ON with proper environment to enable.")
 endif()
 
 # 添加可执行文件 - 包含头文件以确保MOC正确处理
@@ -196,8 +183,15 @@ endif()
 # 链接库 - 渐进式链接，只链接可用的模块
 target_link_libraries(musicplayer
     Qt5::Widgets
-    TagLib::tag
 )
+
+# 条件链接 TagLib
+if(ENABLE_TAGLIB AND TARGET TagLib::tag)
+    target_link_libraries(musicplayer TagLib::tag)
+    target_compile_definitions(musicplayer PRIVATE ENABLE_TAGLIB)
+else()
+    target_compile_definitions(musicplayer PRIVATE DISABLE_TAGLIB)
+endif()
 
 # 条件性链接可选Qt模块
 if(TARGET Qt5::Network)
@@ -233,9 +227,12 @@ endif()
 # 链接FFmpeg库
 if(FFMPEG_LIBRARIES)
     target_link_libraries(musicplayer ${FFMPEG_LIBRARIES})
+    target_compile_definitions(musicplayer PRIVATE ENABLE_FFMPEG)
     if(FFMPEG_LIBRARY_DIRS)
         target_link_directories(musicplayer PRIVATE ${FFMPEG_LIBRARY_DIRS})
     endif()
+else()
+    target_compile_definitions(musicplayer PRIVATE DISABLE_FFMPEG)
 endif()
 
 # 设置目标属性

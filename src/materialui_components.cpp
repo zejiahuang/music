@@ -439,6 +439,49 @@ void SmartTooltip::onHideAnimation() {
     hide();
 }
 
+void SmartTooltip::showTooltip(const QString &text, const QPoint &position, int duration) {
+    m_text = text;
+    adjustSize();
+    move(position);
+    show();
+    raise();
+    m_hideTimer->stop();
+    m_showAnimation->start();
+    if (duration > 0) {
+        m_hideTimer->start(duration);
+    }
+}
+
+void SmartTooltip::hideTooltip() {
+    m_hideTimer->stop();
+    m_hideAnimation->start();
+}
+
+void SmartTooltip::paintEvent(QPaintEvent *event) {
+    Q_UNUSED(event)
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
+
+    // 动态计算尺寸以适配文本
+    QFont f("Microsoft YaHei", 9);
+    painter.setFont(f);
+    QFontMetrics fm(f);
+    const int paddingH = 10;
+    const int paddingV = 6;
+    QRect textRect = fm.boundingRect(m_text);
+    textRect.adjust(-paddingH, -paddingV, paddingH, paddingV);
+    resize(textRect.size());
+
+    // 背景
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(QColor(50, 50, 50, 230));
+    painter.drawRoundedRect(rect(), 6, 6);
+
+    // 文本
+    painter.setPen(Qt::white);
+    painter.drawText(rect(), Qt::AlignCenter, m_text);
+}
+
 // AdvancedProgressBar Implementation
 AdvancedProgressBar::AdvancedProgressBar(QWidget *parent)
     : QWidget(parent)
